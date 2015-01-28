@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Dash basic configuration
+DBG=0
+ESCAPE_SPACE='`'
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
 
 # Output formatting
@@ -48,7 +50,7 @@ SHOW_NEWS=0
 SHOW_WEATHER=0
 SHOW_STATS=0
 SHOW_SNAKE=0
-while getopt -Q -q -o 'HCENWYTSz:' -n 'dash' -- $@; do
+while getopt -Q -q -o 'HCENWYTSdz:' -n 'dash' -- $@; do
 	case "$1" in
 		-H) SHOW_HELP=1;     SECT_LIST+='H'; shift ;;
 		-C) SHOW_CALENDAR=1; SECT_LIST+='C'; shift ;;
@@ -58,6 +60,7 @@ while getopt -Q -q -o 'HCENWYTSz:' -n 'dash' -- $@; do
 		-Y) SHOW_STATS=1;    SECT_LIST+='Y'; shift ;;
 		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
 		-z) ZIPCODE=$2; shift 2 ;;
+		-d) DBG=1; shift ;;
 		""|--) shift; break ;;
 		*) error "Unrecognized option $1" ;;
 	esac
@@ -73,6 +76,8 @@ if [ "$SHOW_HELP" = 1 ]; then
 \t[1m-C[0m\n\
 \t\tInclude a calendar readout in the output (you will be prompted for \
 credentials).\n\n\
+\t[1m-d[0m\n\
+\t\tPrint debugging information (no sections will be shown).\n\n\
 \t[1m-E[0m\n\
 \t\tInclude an email digest in the output (you will be prompted for \
 credentials).\n\n\
@@ -131,12 +136,21 @@ if [ "$SHOW_SNAKE" = 1 ]; then
 fi
 if [ "$MIN_SLEEP" -lt "5" ]; then MIN_SLEEP=5; fi
 
+# Clear the screen once
+clear
+STARTED=0
+
 # Loop the section processing code ad infinitum (exit with CTRL+c)
 while true; do
 	# Get loop params from shell
 	NEW_DATE=`date +%s`
 	COLS=`tput cols`
 	ROWS=`tput lines`
+
+	# Make sure there is enough space for anything
+	if [ "$COLS" -lt 40 ] || [ "$ROWS" -lt 3 ]; then
+		msg "Not enough space!"
+	fi
 
 	# Compute optimal size per section
 	TEMP_WIDTH=$((60*(ROWS/COLS)+40))
@@ -150,11 +164,22 @@ while true; do
 	EXTRA_X=$((COLS-SECTS_X*BASE_COLS))
 	EXTRA_Y=$((ROWS-SECTS_Y*BASE_ROWS))
 	SECTS_PROCESSED=0
+	ROWS_PROCESSED=0
+	COLS_PROCESSED=0
 
-#msg "Sections: $SECTS"
-#msg "Layout: $SECTS_X x $SECTS_Y"
-#msg "Size per section: $BASE_COLS x $BASE_ROWS"
-#msg "Extra: $EXTRA_X, $EXTRA_Y"
+	# Make sure there is enough space for optimal layout
+	if [ "$COLS" -lt "$((41*SECTS_X))" ] || [ "$ROWS" -lt "$((4*SECTS_Y))" ]
+		then msg "Not enough space!"
+	fi
+
+	# Print debugging info about all section metrics
+	if [ "$DBG" = 1 ]; then
+		msg "Sections: $SECTS"
+		msg "Layout: $SECTS_X x $SECTS_Y"
+		msg "Size per section: $BASE_COLS x $BASE_ROWS"
+		msg "Extra: $EXTRA_X, $EXTRA_Y"
+	fi
+
 	# Inner loop to handle each particular section
 	for CUR_SECT in $SECT_LIST; do
 		# Figure out the specific size of this section
@@ -166,22 +191,43 @@ while true; do
 		CUR_ROWS=$((BASE_ROWS+(CUR_Y+EXTRA_Y>=SECTS_Y ? 1 : 0)-BORDER_TOP))
 		NEW_SIZE=$CUR_COLS"x"$CUR_ROWS
 
-		# Print borders as needed
-		if [ "$BORDER_TOP" = 1 ]; then
-			# TODO ----------------------- tput to position cursor
-			if [ "$CUR_X" -gt 0 ]; then
-				echo -n '+';
-				echo -n "$(head -c $CUR_COLS < "/dev/zero" | tr '\0' '-')"
-			else
-				echo -n '-';
-				echo -n "$(head -c $((CUR_COLS-1)) < "/dev/zero" | tr '\0' '-')"
+		# Print debugging info about specific section
+		if [ "$DBG" = 1 ]; then
+			msg "Section '$CUR_SECT'  Size $NEW_SIZE"
+		fi
+
+		# Initialize freshness and printing vars
+		DATA_FRESH=0
+		SIZE_FRESH=0
+		DATE=0
+		DATA=''
+		SIZE='0x0'
+		DRAW=()
+		NEW_DATA=''
+		NEW_DRAW=()
+
+		# Get seconds per poll for this section
+SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
+
+		# Check any previous data
+		if [ -f "$DASH_ROOT/$CUR_SECT"".dash" ]; then
+			# See if data is still fresh
+			OLD_DATE=$(head -n 1 "$DASH_ROOT/$CUR_SECT"".dash" | tail -n 1)
+			OLD_DATA=$(head -n 2 "$DASH_ROOT/$CUR_SECT"".dash" | tail -n 1)
+			if [ $OLD_DATE -ge $((NEW_DATE-SECONDS_PER_POLL)) ];
+				then
+				DATA_FRESH=1
+
+				# See if the display size is still correct
+				OLD_SIZE=$(head -n 3 "$DASH_ROOT/$CUR_SECT"".dash" | tail -n 1)
+				OLD_DRAW=$(tail -n +4 "$DASH_ROOT/$CUR_SECT"".dash")
+				if [ $OLD_SIZE == $NEW_SIZE ]; then
+					SIZE_FRESH=1
+				fi
 			fi
 		fi
 
-		# Initialize freshness vars
-		DATA_FRESH=0
-		SIZE_FRESH=0
-
+SIZE_FRESH=0
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			echo -n ""
@@ -199,27 +245,7 @@ while true; do
 
 		# --- Weather ---------------------------------------
 		if [ "$CUR_SECT" == 'W' ]; then
-			# Check any previous data
-			if [ -f "$DASH_ROOT/weather.dash" ]; then
-				# See if data is still fresh
-				OLD_DATE=$(head -n 1 "$DASH_ROOT/weather.dash" | tail -n 1)
-				OLD_DATA=$(head -n 2 "$DASH_ROOT/weather.dash" | tail -n 1)
-				if [ $OLD_DATE -ge $((NEW_DATE-WEATHER_SECONDS_PER_POLL)) ];
-					then
-					DATA_FRESH=1
-
-					# See if the display size is still correct
-					OLD_SIZE=$(head -n 3 "$DASH_ROOT/weather.dash" | tail -n 1)
-					OLD_DRAW=$(tail -n +4 "$DASH_ROOT/weather.dash")
-					if [ $OLD_SIZE == $NEW_SIZE ]; then
-						SIZE_FRESH=1
-					fi
-				fi
-			fi
-
-DATA_FRESH=0
-SIZE_FRESH=0
-			# If the data is old, download new data. In either case, store it
+			# If the data is old, download new data, otherwise use the old data
 			if [ "$DATA_FRESH" = 0 ]; then
 				URL="http://www.weather.gov/xml/current_obs/"
 				DOWNLOAD=$(wget -q -O- "$URL$WEATHER_NOAA_STATION_CODE"".xml")
@@ -227,11 +253,11 @@ SIZE_FRESH=0
 				D_loc=$(grep -oPm1 "(?<=<location>)[^<]*" <<< "$DOWNLOAD")
 				D_lat=$(grep -oPm1 "(?<=<latitude>)[^<]*" <<< "$DOWNLOAD")
 				D_lon=$(grep -oPm1 "(?<=<longitude>)[^<]*" <<< "$DOWNLOAD")
-				D_time=$(grep -oPm1 "(?<=<[a-z_]*rfc822>)[^<]*" <<< "$DOWNLOAD")
+				D_time=$(grep -oPm1 "(?<=<observation_time_rfc822>)[^<]*" <<< "$DOWNLOAD")
 				D_weather=$(grep -oPm1 "(?<=<weather>)[^<]*" <<< "$DOWNLOAD")
 				D_temp_f=$(grep -oPm1 "(?<=<temp_f>)[^<]*" <<< "$DOWNLOAD")
 				D_temp_c=$(grep -oPm1 "(?<=<temp_c>)[^<]*" <<< "$DOWNLOAD")
-				D_hu=$(grep -oPm1 "(?<=<[a-z_]*humidity>)[^<]*" <<< "$DOWNLOAD")
+				D_hu=$(grep -oPm1 "(?<=<relative_humidity>)[^<]*" <<< "$DOWNLOAD")
 				D_w_dir=$(grep -oPm1 "(?<=<wind_dir>)[^<]*" <<< "$DOWNLOAD")
 				D_w_mph=$(grep -oPm1 "(?<=<wind_mph>)[^<]*" <<< "$DOWNLOAD")
 				D_chil_f=$(grep -oPm1 "(?<=<windchill_f>)[^<]*" <<< "$DOWNLOAD")
@@ -239,32 +265,49 @@ SIZE_FRESH=0
 				D_vis=$(grep -oPm1 "(?<=<visibility_mi>)[^<]*" <<< "$DOWNLOAD")
 				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
 $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
-				DATA=(${NEW_DATA//;/})
-				DATE=$NEW_DATE
+				DATA=$NEW_DATA
 			else
-				DATA=(${OLD_DATA//;/})
-				DATE=$OLD_DATE
+				DATA=$OLD_DATA
 			fi
 
 			# If the drawing is old, redo it. In either case, store it
 			if [ "$SIZE_FRESH" = 0 ]; then
-#"$D_weather;$D_temp_f;$D_temp_c;$D_chill_f;$D_chill_c;$D_hum;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon"
-				NEW_DRAW=()
-				SIZE=$NEW_SIZE
-				DRAW=$NEW_DRAW
-			else
-				SIZE=$OLD_SIZE
-				DRAW=$OLD_DRAW
-			fi
+				# Expand the data into an array, handling string escapes
+				DATA_ESCAPED=${DATA// /$ESCAPE_SPACE}
+				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
+				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$ESCAPE_SPACE/ }
+				done
 
-			# If anything has changed, write the contents back to the dash file
-			if [ "$DATA_FRESH" = 0 ] || [ "$SIZE_FRESH" = 0 ]; then
-				echo "$DATE" > "$DASH_ROOT/weather.dash"
-				echo "$DATA" >> "$DASH_ROOT/weather.dash"
-				echo "$SIZE" >> "$DASH_ROOT/weather.dash"
-				echo "$DRAW" >> "$DASH_ROOT/weather.dash"
+				# Draw as many items as can fit
+				NEW_DRAW=()
+#0 weather
+#1 temp_f
+#2 temp_c
+#3 chill_f
+#4 chill_c
+#5 humidity
+#6 time
+#7 credit
+#8 wind_direction
+#9 wind_mph
+#10 visibility_mi
+#11 location
+#12 latitude
+#13 longitude
+				NEW_DRAW[0]=${DATA_ARRAY[0]}
+				if [ "$WEATHER_TEMPERATURE_UNITS" == "C" ]; then
+					NEW_DRAW[1]=${DATA_ARRAY[2]}"°C (feels like "${DATA_ARRAY[4]}"°)"
+				else
+					NEW_DRAW[1]=${DATA_ARRAY[1]}"°F (feels like "${DATA_ARRAY[3]}"°)"
+				fi
+				NEW_DRAW[2]="Humidity: ${DATA_ARRAY[5]}%"
+				if [ "$CUR_ROWS" -gt 3 ]; then
+					NEW_DRAW[3]=${DATA_ARRAY[6]}
+				fi
 			fi
 		fi
+#`'\`'|`'\`'\`
 
 		# --- Stats -----------------------------------------
 		if [ "$CUR_SECT" == 'Y' ]; then
@@ -276,18 +319,70 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 			echo -n ""
 		fi
 
-		# Draw the section contents
-		for i in `seq 0 $((CUR_ROWS-1))`; do
-			# TODO ----------------------- tput to position cursor
-			if [ "$BORDER_LEFT" = 1 ]; then echo -n '|'; fi
-			echo -n ${DRAW[$i]}
-		done
+		# Get the correct data and date
+		if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DBG" = 1 ]; then msg "New Data"; fi
+			DATA=$NEW_DATA
+			DATE=$NEW_DATE
+		else
+			if [ "$DBG" = 1 ]; then msg "Old Data"; fi
+			DATA=$OLD_DATA
+			DATE=$OLD_DATE
+		fi
+
+		# Get the correct size and drawing
+		if [ "$SIZE_FRESH" = 0 ]; then
+			if [ "$DBG" = 1 ]; then msg "New Drawing"; fi
+			SIZE=$NEW_SIZE
+			DRAW=("${NEW_DRAW[@]}")
+		else
+			if [ "$DBG" = 1 ]; then msg "Old Drawing"; fi
+			SIZE=$OLD_SIZE
+			DRAW=("${OLD_DRAW[@]}")
+		fi
+
+		# If anything has changed, write to the dash file and print it
+		if [ "$((DATA_FRESH+SIZE_FRESH+STARTED))" -lt 3 ]; then
+			# Print data to file
+			echo "$DATE" > "$DASH_ROOT/$CUR_SECT"".dash"
+			echo "$DATA" >> "$DASH_ROOT/$CUR_SECT"".dash"
+			echo "$SIZE" >> "$DASH_ROOT/$CUR_SECT"".dash"
+			printf '%s\n' "${DRAW[@]}"  >> "$DASH_ROOT/$CUR_SECT"".dash"
+
+			if [ "$DBG" = 0 ]; then
+				# Print top border as needed
+				if [ "$BORDER_TOP" = 1 ]; then
+					tput cup $ROWS_PROCESSED $COLS_PROCESSED
+					if [ "$CUR_X" -gt 0 ]; then
+						echo -n '+';
+						echo -n "$(head -c $CUR_COLS < "/dev/zero" | tr '\0' '-')"
+					else
+						echo -n '-';
+						echo -n "$(head -c $((CUR_COLS-1)) < "/dev/zero" | tr '\0' '-')"
+					fi
+				fi
+
+				# Print left border and content
+				for i in `seq 0 $((CUR_ROWS-1))`; do
+					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
+					if [ "$BORDER_LEFT" = 1 ]; then echo -n '|'; fi
+					echo -n "${DRAW[$i]}"
+				done
+			fi
+		fi
 
 		# Done with one section drawing
+		if [ "$CUR_X" -eq "$((SECTS_X-1))" ]; then
+			COLS_PROCESSED=0
+			ROWS_PROCESSED=$((ROWS_PROCESSED+CUR_ROWS+BORDER_TOP))
+		else
+			COLS_PROCESSED=$((COLS_PROCESSED+CUR_COLS+BORDER_LEFT))
+		fi
 		((++SECTS_PROCESSED))
 	done
 
 	# Wait until the next refresh
+	STARTED=1
 	sleep $MIN_SLEEP
 
 # Return to start of section processing
