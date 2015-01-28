@@ -1,0 +1,232 @@
+#!/bin/bash
+
+# Dash basic configuration
+[ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
+
+# Output formatting
+COLOR_RESET="[0;39;49m"
+COLOR_BOLD="[1m"
+COLOR_ULINE="[4m"
+COLOR_BOLD_OFF="[21m"
+COLOR_ULINE_OFF="[24m"
+COLOR_NORM="[39m"
+COLOR_GREN="[38;5;118m"
+COLOR_BLUE="[38;5;81m"
+COLOR_RED="[38;5;161m"
+COLOR_PURP="[38;5;135m"
+COLOR_ORNG="[38;5;208m"
+COLOR_GREY="[38;5;245m"
+function msg(){
+	echo -e "$COLOR_RESET$COLOR_GREY[Dash]$COLOR_NORM $1\n"
+}
+function error(){
+	msg "$COLOR_RED""Error:$COLOR_NORM $1"
+	if [[ -z "$2" ]]; then exit 1; fi; exit $2
+}
+
+# Handle CLI args
+SHOW_HELP=0
+if [ "$#" -lt 1 ]; then SHOW_HELP=1; fi
+SECT_LIST=''
+SHOW_CALENDAR=0
+SHOW_EMAIL=0
+SHOW_NEWS=0
+SHOW_WEATHER=0
+SHOW_STATS=0
+SHOW_SNAKE=0
+while getopt -Q -q -o 'HCENWYTSz:' -n 'dash' -- $@; do
+	case "$1" in
+		-H) SHOW_HELP=1;     SECT_LIST+='H'; shift ;;
+		-C) SHOW_CALENDAR=1; SECT_LIST+='C'; shift ;;
+		-E) SHOW_EMAIL=1;    SECT_LIST+='E'; shift ;;
+		-N) SHOW_NEWS=1;     SECT_LIST+='N'; shift ;;
+		-W) SHOW_WEATHER=1;  SECT_LIST+='W'; shift ;;
+		-Y) SHOW_STATS=1;    SECT_LIST+='Y'; shift ;;
+		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
+		-z) ZIPCODE=$2; shift 2 ;;
+		""|--) shift; break ;;
+		*) error "Unrecognized option $1" ;;
+	esac
+done
+if [[ -n "$1" ]]; then error "Unrecognized option $1"; fi
+SECT_LIST=`echo $SECT_LIST | grep -o .`
+
+# Only in the case of the help menu being requested, print help and exit
+if [ "$SHOW_HELP" = 1 ]; then
+	echo -e "[1mSYNOPSIS[0m\n\
+\t[1mdash[0m [[4moptions[0m]\n\n\
+[1mOPTIONS[0m\n\
+\t[1m-C[0m\n\
+\t\tInclude a calendar readout in the output (you will be prompted for \
+credentials).\n\n\
+\t[1m-E[0m\n\
+\t\tInclude an email digest in the output (you will be prompted for \
+credentials).\n\n\
+\t[1m-H[0m\n\
+\t\tOuput these instructions, and exit.\n\n\
+\t[1m-N[0m\n\
+\t\tInclude a news digest in the output.\n\n\
+\t[1m-S[0m\n\
+\t\tInclude snake!\n\n\
+\t[1m-W[0m\n\
+\t\tInclude a weather forecast in the output.\n\n\
+\t[1m-Y[0m\n\
+\t\tInclude system stats in the output (output may be reduced if run without \
+privileges).\n"
+	exit
+fi
+
+# Additional configuration for individual sections
+SECTS=0
+if [ "$SHOW_CALENDAR" = 1 ]; then
+	# Add one section
+	((SECTS++))
+fi
+if [ "$SHOW_EMAIL" = 1 ]; then
+	# Add one section
+	((SECTS++))
+fi
+if [ "$SHOW_NEWS" = 1 ]; then
+	# Add one section
+	((SECTS++))
+fi
+if [ "$SHOW_WEATHER" = 1 ]; then
+	# Add one section
+	((SECTS++))
+	# Get INI values
+	WEATHER_NOAA_STATION_CODE=$(awk -F "\\\\s*=\\\\s*"\
+		'/WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")
+	[ -z "WEATHER_NOAA_STATION_CODE" ] && WEATHER_NOAA_STATION_CODE='KNYC'
+	WEATHER_SECONDS_PER_POLL=$(awk -F "\\\\s*=\\\\s*"\
+		'/WEATHER_SECONDS_PER_POLL/ {print $2}' "$DASH_ROOT/dash.ini")
+	[ -z "WEATHER_SECONDS_PER_POLL" ] && WEATHER_SECONDS_PER_POLL='600'
+	# Update polling time
+	[ "$MIN_SLEEP" > "$WEATHER_SECONDS_PER_POLL" ] \
+		&& MIN_SLEEP="$WEATHER_SECONDS_PER_POLL"
+fi
+if [ "$SHOW_STATS" = 1 ]; then
+	# Add one section
+	((SECTS++))
+fi
+if [ "$SHOW_SNAKE" = 1 ]; then
+	# Add one section
+	((SECTS++))
+fi
+
+
+# Loop the section processing code
+MIN_SLEEP=600
+while true; do
+	# Get loop params from shell
+	NEW_DATE=`date +%s`
+	COLS=`tput cols`
+	ROWS=`tput lines`
+
+	# Compute optimal size per section
+	TEMP_WIDTH=$((60*(ROWS/COLS)+40))
+	while [ "$((COLS/TEMP_WIDTH))" -gt "$SECTS" ]; do
+		((TEMP_WIDTH+=10))
+	done
+	SECTS_X=$((COLS/TEMP_WIDTH))
+	SECTS_Y=$((SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0)))
+	BASE_COLS=$((COLS/SECTS_X))
+	BASE_ROWS=$((ROWS/SECTS_Y))
+	EXTRA_X=$((COLS-SECTS_X*BASE_COLS))
+	EXTRA_Y=$((ROWS-SECTS_Y*BASE_ROWS))
+	SECTS_PROCESSED=0
+
+msg "Sections: $SECTS"
+msg "Layout: $SECTS_X x $SECTS_Y"
+msg "Size per section: $BASE_COLS x $BASE_ROWS"
+msg "Extra: $EXTRA_X, $EXTRA_Y"
+	# Inner loop to handle each particular section
+	for CUR_SECT in $SECT_LIST; do
+		# Figure out the specific size of this section
+		CUR_X=$((SECTS_PROCESSED%SECTS_X))
+		CUR_Y=$((SECTS_PROCESSED/SECTS_X))
+		BORDER_LEFT=$((CUR_X>0 ? 1 : 0))
+		BORDER_TOP=$((CUR_Y>0 ? 1 : 0))
+		CUR_COLS=$((BASE_COLS+(CUR_X+EXTRA_X>=SECTS_X ? 1 : 0)-BORDER_LEFT))
+		CUR_ROWS=$((BASE_ROWS+(CUR_Y+EXTRA_Y>=SECTS_Y ? 1 : 0)-BORDER_TOP))
+
+		# --- Calendar --------------------------------------
+		if [ "$CUR_SECT" == 'C' ]; then
+			echo -n ""
+		fi
+
+		# --- Email -----------------------------------------
+		if [ "$CUR_SECT" == 'E' ]; then
+			echo -n ""
+		fi
+
+		# --- News ------------------------------------------
+		if [ "$CUR_SECT" == 'N' ]; then
+			echo -n ""
+		fi
+
+		# --- Weather ---------------------------------------
+		if [ "$CUR_SECT" == 'W' ]; then
+			# Set the specific size for this section
+			NEW_SIZE=$CUR_COLS"x"$CUR_ROWS
+
+			# Check any previous data
+			DATA_FRESH=0
+			SIZE_FRESH=0
+			if [ -f "$DASH_ROOT/weather.dash" ]; then
+				# See if data is still fresh
+				OLD_DATE=$(head -n 1 "$DASH_ROOT/weather.dash" | tail -n 1)
+				OLD_DATA=$(head -n 2 "$DASH_ROOT/weather.dash" | tail -n 1)
+				if [ $OLD_DATE -ge $((NEW_DATE-WEATHER_SECONDS_PER_POLL))\
+						]; then
+					DATA_FRESH=1
+
+					# See if the display size is still correct
+					OLD_SIZE=$(head -n 3 "$DASH_ROOT/weather.dash" | tail -n 1)
+					if [ $OLD_SIZE == $NEW_SIZE ]; then
+						SIZE_FRESH=1
+					fi
+				fi
+			fi
+
+			# If the data is old, then download the new data, and store it
+			if [ "$DATA_FRESH" = 0 ]; then
+#			wget -q -O- "http://www.weather.gov/xml/current_obs/"$WEATHER_NOAA_STATION_CODE".xml" >> "$DASH_ROOT/weather.dash"
+#			NEW_DATA=
+				DATA=(${NEW_DATA//;/})
+#			NEW_DRAW=
+
+				echo "$NEW_DATE" > "$DASH_ROOT/weather.dash"
+				echo "$NEW_DATA" >> "$DASH_ROOT/weather.dash"
+				echo "$NEW_SIZE" >> "$DASH_ROOT/weather.dash"
+				echo "$NEW_DRAW" >> "$DASH_ROOT/weather.dash"
+			# If the data is fresh, but we've resized, just update the drawing
+			elif [ "$SIZE_FRESH" = 0 ]; then
+				DATA=(${OLD_DATA//;/})
+#			NEW_DRAW=
+
+				echo "$OLD_DATE" > "$DASH_ROOT/weather.dash"
+				echo "$OLD_DATA" >> "$DASH_ROOT/weather.dash"
+				echo "$NEW_SIZE" >> "$DASH_ROOT/weather.dash"
+				echo "$NEW_DRAW" >> "$DASH_ROOT/weather.dash"
+			fi
+		fi
+
+		# --- Stats -----------------------------------------
+		if [ "$CUR_SECT" == 'Y' ]; then
+			echo -n ""
+		fi
+
+		# --- Snake -----------------------------------------
+		if [ "$CUR_SECT" == 'S' ]; then
+			echo -n ""
+		fi
+
+		# Done with one section drawing
+		((++SECTS_PROCESSED))
+	done
+
+	# Wait until the next refresh
+	sleep $MIN_SLEEP
+
+# Return to start of section processing
+done
