@@ -20,8 +20,22 @@ function msg(){
 	echo -e "$COLOR_RESET$COLOR_GREY[Dash]$COLOR_NORM $1\n"
 }
 function error(){
-	msg "$COLOR_RED""Error:$COLOR_NORM $1"
-	if [[ -z "$2" ]]; then exit 1; fi; exit $2
+	echo -e "$COLOR_RESET$COLOR_GREY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n" >&2
+	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
+}
+
+# Support functions
+function GCD(){
+	if [ $# -ne 2 ]; then error "GCD() got incorrect arg count"; fi
+	NUM=$1
+	DEN=$2
+	REM=$((NUM%DEN))
+	until [ "$REM" -eq 0 ]; do
+		NUM=$DEN
+		DEN=$REM
+		REM=$((NUM%DEN))
+	done
+	echo $DEN
 }
 
 # Handle CLI args
@@ -78,6 +92,7 @@ fi
 
 # Additional configuration for individual sections
 SECTS=0
+MIN_SLEEP=600
 if [ "$SHOW_CALENDAR" = 1 ]; then
 	# Add one section
 	((SECTS++))
@@ -94,15 +109,17 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	# Add one section
 	((SECTS++))
 	# Get INI values
-	WEATHER_NOAA_STATION_CODE=$(awk -F "\\\\s*=\\\\s*"\
-		'/WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")
-	[ -z "WEATHER_NOAA_STATION_CODE" ] && WEATHER_NOAA_STATION_CODE='KNYC'
 	WEATHER_SECONDS_PER_POLL=$(awk -F "\\\\s*=\\\\s*"\
 		'/WEATHER_SECONDS_PER_POLL/ {print $2}' "$DASH_ROOT/dash.ini")
-	[ -z "WEATHER_SECONDS_PER_POLL" ] && WEATHER_SECONDS_PER_POLL='600'
+		[ -z "$WEATHER_SECONDS_PER_POLL" ] && WEATHER_SECONDS_PER_POLL='600'
+	WEATHER_NOAA_STATION_CODE=$(awk -F "\\\\s*=\\\\s*"\
+		'/WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")
+		[ -z "$WEATHER_NOAA_STATION_CODE" ] && WEATHER_NOAA_STATION_CODE='KNYC'
+	WEATHER_TEMPERATURE_UNITS=$(awk -F "\\\\s*=\\\\s*"\
+		'/WEATHER_TEMPERATURE_UNITS/ {print $2}' "$DASH_ROOT/dash.ini")
+		[ -z "$WEATHER_TEMPERATURE_UNITS" ] && WEATHER_TEMPERATURE_UNITS='F'
 	# Update polling time
-	[ "$MIN_SLEEP" > "$WEATHER_SECONDS_PER_POLL" ] \
-		&& MIN_SLEEP="$WEATHER_SECONDS_PER_POLL"
+	MIN_SLEEP="$(GCD "$WEATHER_SECONDS_PER_POLL" "$MIN_SLEEP")"
 fi
 if [ "$SHOW_STATS" = 1 ]; then
 	# Add one section
@@ -112,10 +129,9 @@ if [ "$SHOW_SNAKE" = 1 ]; then
 	# Add one section
 	((SECTS++))
 fi
+if [ "$MIN_SLEEP" -lt "5" ]; then MIN_SLEEP=5; fi
 
-
-# Loop the section processing code
-MIN_SLEEP=600
+# Loop the section processing code ad infinitum (exit with CTRL+c)
 while true; do
 	# Get loop params from shell
 	NEW_DATE=`date +%s`
@@ -135,10 +151,10 @@ while true; do
 	EXTRA_Y=$((ROWS-SECTS_Y*BASE_ROWS))
 	SECTS_PROCESSED=0
 
-msg "Sections: $SECTS"
-msg "Layout: $SECTS_X x $SECTS_Y"
-msg "Size per section: $BASE_COLS x $BASE_ROWS"
-msg "Extra: $EXTRA_X, $EXTRA_Y"
+#msg "Sections: $SECTS"
+#msg "Layout: $SECTS_X x $SECTS_Y"
+#msg "Size per section: $BASE_COLS x $BASE_ROWS"
+#msg "Extra: $EXTRA_X, $EXTRA_Y"
 	# Inner loop to handle each particular section
 	for CUR_SECT in $SECT_LIST; do
 		# Figure out the specific size of this section
@@ -148,6 +164,23 @@ msg "Extra: $EXTRA_X, $EXTRA_Y"
 		BORDER_TOP=$((CUR_Y>0 ? 1 : 0))
 		CUR_COLS=$((BASE_COLS+(CUR_X+EXTRA_X>=SECTS_X ? 1 : 0)-BORDER_LEFT))
 		CUR_ROWS=$((BASE_ROWS+(CUR_Y+EXTRA_Y>=SECTS_Y ? 1 : 0)-BORDER_TOP))
+		NEW_SIZE=$CUR_COLS"x"$CUR_ROWS
+
+		# Print borders as needed
+		if [ "$BORDER_TOP" = 1 ]; then
+			# TODO ----------------------- tput to position cursor
+			if [ "$CUR_X" -gt 0 ]; then
+				echo -n '+';
+				echo -n "$(head -c $CUR_COLS < "/dev/zero" | tr '\0' '-')"
+			else
+				echo -n '-';
+				echo -n "$(head -c $((CUR_COLS-1)) < "/dev/zero" | tr '\0' '-')"
+			fi
+		fi
+
+		# Initialize freshness vars
+		DATA_FRESH=0
+		SIZE_FRESH=0
 
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
@@ -166,48 +199,70 @@ msg "Extra: $EXTRA_X, $EXTRA_Y"
 
 		# --- Weather ---------------------------------------
 		if [ "$CUR_SECT" == 'W' ]; then
-			# Set the specific size for this section
-			NEW_SIZE=$CUR_COLS"x"$CUR_ROWS
-
 			# Check any previous data
-			DATA_FRESH=0
-			SIZE_FRESH=0
 			if [ -f "$DASH_ROOT/weather.dash" ]; then
 				# See if data is still fresh
 				OLD_DATE=$(head -n 1 "$DASH_ROOT/weather.dash" | tail -n 1)
 				OLD_DATA=$(head -n 2 "$DASH_ROOT/weather.dash" | tail -n 1)
-				if [ $OLD_DATE -ge $((NEW_DATE-WEATHER_SECONDS_PER_POLL))\
-						]; then
+				if [ $OLD_DATE -ge $((NEW_DATE-WEATHER_SECONDS_PER_POLL)) ];
+					then
 					DATA_FRESH=1
 
 					# See if the display size is still correct
 					OLD_SIZE=$(head -n 3 "$DASH_ROOT/weather.dash" | tail -n 1)
+					OLD_DRAW=$(tail -n +4 "$DASH_ROOT/weather.dash")
 					if [ $OLD_SIZE == $NEW_SIZE ]; then
 						SIZE_FRESH=1
 					fi
 				fi
 			fi
 
-			# If the data is old, then download the new data, and store it
+DATA_FRESH=0
+SIZE_FRESH=0
+			# If the data is old, download new data. In either case, store it
 			if [ "$DATA_FRESH" = 0 ]; then
-#			wget -q -O- "http://www.weather.gov/xml/current_obs/"$WEATHER_NOAA_STATION_CODE".xml" >> "$DASH_ROOT/weather.dash"
-#			NEW_DATA=
+				URL="http://www.weather.gov/xml/current_obs/"
+				DOWNLOAD=$(wget -q -O- "$URL$WEATHER_NOAA_STATION_CODE"".xml")
+				D_cred=$(grep -oPm1 "(?<=<credit_URL>)[^<]*" <<< "$DOWNLOAD")
+				D_loc=$(grep -oPm1 "(?<=<location>)[^<]*" <<< "$DOWNLOAD")
+				D_lat=$(grep -oPm1 "(?<=<latitude>)[^<]*" <<< "$DOWNLOAD")
+				D_lon=$(grep -oPm1 "(?<=<longitude>)[^<]*" <<< "$DOWNLOAD")
+				D_time=$(grep -oPm1 "(?<=<[a-z_]*rfc822>)[^<]*" <<< "$DOWNLOAD")
+				D_weather=$(grep -oPm1 "(?<=<weather>)[^<]*" <<< "$DOWNLOAD")
+				D_temp_f=$(grep -oPm1 "(?<=<temp_f>)[^<]*" <<< "$DOWNLOAD")
+				D_temp_c=$(grep -oPm1 "(?<=<temp_c>)[^<]*" <<< "$DOWNLOAD")
+				D_hu=$(grep -oPm1 "(?<=<[a-z_]*humidity>)[^<]*" <<< "$DOWNLOAD")
+				D_w_dir=$(grep -oPm1 "(?<=<wind_dir>)[^<]*" <<< "$DOWNLOAD")
+				D_w_mph=$(grep -oPm1 "(?<=<wind_mph>)[^<]*" <<< "$DOWNLOAD")
+				D_chil_f=$(grep -oPm1 "(?<=<windchill_f>)[^<]*" <<< "$DOWNLOAD")
+				D_chil_c=$(grep -oPm1 "(?<=<windchill_c>)[^<]*" <<< "$DOWNLOAD")
+				D_vis=$(grep -oPm1 "(?<=<visibility_mi>)[^<]*" <<< "$DOWNLOAD")
+				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
+$D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 				DATA=(${NEW_DATA//;/})
-#			NEW_DRAW=
-
-				echo "$NEW_DATE" > "$DASH_ROOT/weather.dash"
-				echo "$NEW_DATA" >> "$DASH_ROOT/weather.dash"
-				echo "$NEW_SIZE" >> "$DASH_ROOT/weather.dash"
-				echo "$NEW_DRAW" >> "$DASH_ROOT/weather.dash"
-			# If the data is fresh, but we've resized, just update the drawing
-			elif [ "$SIZE_FRESH" = 0 ]; then
+				DATE=$NEW_DATE
+			else
 				DATA=(${OLD_DATA//;/})
-#			NEW_DRAW=
+				DATE=$OLD_DATE
+			fi
 
-				echo "$OLD_DATE" > "$DASH_ROOT/weather.dash"
-				echo "$OLD_DATA" >> "$DASH_ROOT/weather.dash"
-				echo "$NEW_SIZE" >> "$DASH_ROOT/weather.dash"
-				echo "$NEW_DRAW" >> "$DASH_ROOT/weather.dash"
+			# If the drawing is old, redo it. In either case, store it
+			if [ "$SIZE_FRESH" = 0 ]; then
+#"$D_weather;$D_temp_f;$D_temp_c;$D_chill_f;$D_chill_c;$D_hum;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon"
+				NEW_DRAW=()
+				SIZE=$NEW_SIZE
+				DRAW=$NEW_DRAW
+			else
+				SIZE=$OLD_SIZE
+				DRAW=$OLD_DRAW
+			fi
+
+			# If anything has changed, write the contents back to the dash file
+			if [ "$DATA_FRESH" = 0 ] || [ "$SIZE_FRESH" = 0 ]; then
+				echo "$DATE" > "$DASH_ROOT/weather.dash"
+				echo "$DATA" >> "$DASH_ROOT/weather.dash"
+				echo "$SIZE" >> "$DASH_ROOT/weather.dash"
+				echo "$DRAW" >> "$DASH_ROOT/weather.dash"
 			fi
 		fi
 
@@ -220,6 +275,13 @@ msg "Extra: $EXTRA_X, $EXTRA_Y"
 		if [ "$CUR_SECT" == 'S' ]; then
 			echo -n ""
 		fi
+
+		# Draw the section contents
+		for i in `seq 0 $((CUR_ROWS-1))`; do
+			# TODO ----------------------- tput to position cursor
+			if [ "$BORDER_LEFT" = 1 ]; then echo -n '|'; fi
+			echo -n ${DRAW[$i]}
+		done
 
 		# Done with one section drawing
 		((++SECTS_PROCESSED))
