@@ -1,29 +1,75 @@
 #!/bin/bash
 
 # Dash basic configuration
-DBG=0
-ESCAPE_SPACE='`'
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
+function load_config(){
+	RET="$(awk -F "\\\\s*=\\\\s*" "/^$1/"' {print $2}' "$DASH_ROOT/dash.ini")"
+	[ -n "$RET" ] && echo $RET || echo $2
+}
+DBG=$(load_config "DBG" '0')
+DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" '')
+DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '8')
+DISPLAY_ESCAPE_SPACE=$(load_config "DISPLAY_ESCAPE_SPACE" '`')
+if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '│')
+	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '─')
+	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '┼')
+else
+	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '|')
+	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '-')
+	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '+')
+fi
 
 # Output formatting
-COLOR_RESET="[0;39;49m"
-COLOR_BOLD="[1m"
-COLOR_ULINE="[4m"
-COLOR_BOLD_OFF="[21m"
-COLOR_ULINE_OFF="[24m"
-COLOR_NORM="[39m"
-COLOR_GREN="[38;5;118m"
-COLOR_BLUE="[38;5;81m"
-COLOR_RED="[38;5;161m"
-COLOR_PURP="[38;5;135m"
-COLOR_ORNG="[38;5;208m"
-COLOR_GREY="[38;5;245m"
+if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
+	COLOR_RESET="[0;39;49m"
+	COLOR_BOLD="[1m"
+	COLOR_ULINE="[4m"
+	COLOR_BOLD_OFF="[21m"
+	COLOR_ULINE_OFF="[24m"
+	COLOR_NORM="[39m"
+	COLOR_GREN="[38;5;118m"
+	COLOR_BLUE="[38;5;81m"
+	COLOR_RED="[38;5;161m"
+	COLOR_PURP="[38;5;135m"
+	COLOR_ORNG="[38;5;208m"
+	COLOR_GREY="[38;5;245m"
+elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
+	COLOR_RESET="[0;39;49m"
+	COLOR_BOLD="[1m"
+	COLOR_ULINE="[4m"
+	COLOR_BOLD_OFF="[21m"
+	COLOR_ULINE_OFF="[24m"
+	COLOR_NORM="[39m"
+	COLOR_GREN="[32m"
+	COLOR_BLUE="[34m"
+	COLOR_RED="[31m"
+	COLOR_PURP="[35m"
+	COLOR_ORNG="[33m"
+	COLOR_GREY="[37m"
+else
+	COLOR_RESET=""
+	COLOR_BOLD=""
+	COLOR_ULINE=""
+	COLOR_BOLD_OFF=""
+	COLOR_ULINE_OFF=""
+	COLOR_NORM=""
+	COLOR_GREN=""
+	COLOR_BLUE=""
+	COLOR_RED=""
+	COLOR_PURP=""
+	COLOR_ORNG=""
+	COLOR_GREY=""
+fi
 function msg(){
 	echo -e "$COLOR_RESET$COLOR_GREY[Dash]$COLOR_NORM $1\n"
 }
 function error(){
 	echo -e "$COLOR_RESET$COLOR_GREY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n" >&2
 	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
+}
+function center(){
+	printf "%*s\n" $(( (${#1} + $2 + 1) / 2)) "${1}"
 }
 
 # Support functions
@@ -77,7 +123,8 @@ if [ "$SHOW_HELP" = 1 ]; then
 \t\tInclude a calendar readout in the output (you will be prompted for \
 credentials).\n\n\
 \t[1m-d[0m\n\
-\t\tPrint debugging information (no sections will be shown).\n\n\
+\t\tPrint debugging information (overrides value in dash.ini). No sections \
+will be shown.\n\n\
 \t[1m-E[0m\n\
 \t\tInclude an email digest in the output (you will be prompted for \
 credentials).\n\n\
@@ -96,48 +143,54 @@ privileges).\n"
 fi
 
 # Additional configuration for individual sections
-SECTS=0
 MIN_SLEEP=600
 if [ "$SHOW_CALENDAR" = 1 ]; then
-	# Add one section
-	((SECTS++))
+	:
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
-	# Add one section
-	((SECTS++))
+	:
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
-	# Add one section
-	((SECTS++))
+	:
 fi
 if [ "$SHOW_WEATHER" = 1 ]; then
-	# Add one section
-	((SECTS++))
 	# Get INI values
 	WEATHER_SECONDS_PER_POLL=$(awk -F "\\\\s*=\\\\s*"\
-		'/WEATHER_SECONDS_PER_POLL/ {print $2}' "$DASH_ROOT/dash.ini")
-		[ -z "$WEATHER_SECONDS_PER_POLL" ] && WEATHER_SECONDS_PER_POLL='600'
+		'/^WEATHER_SECONDS_PER_POLL/ {print $2}' "$DASH_ROOT/dash.ini")\
+		|| echo -n "600"
 	WEATHER_NOAA_STATION_CODE=$(awk -F "\\\\s*=\\\\s*"\
-		'/WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")
-		[ -z "$WEATHER_NOAA_STATION_CODE" ] && WEATHER_NOAA_STATION_CODE='KNYC'
+		'/^WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")\
+		|| echo -n "KNYC"
 	WEATHER_TEMPERATURE_UNITS=$(awk -F "\\\\s*=\\\\s*"\
-		'/WEATHER_TEMPERATURE_UNITS/ {print $2}' "$DASH_ROOT/dash.ini")
-		[ -z "$WEATHER_TEMPERATURE_UNITS" ] && WEATHER_TEMPERATURE_UNITS='F'
+		'/^WEATHER_TEMPERATURE_UNITS/ {print $2}' "$DASH_ROOT/dash.ini")\
+		|| echo -n "F"
+	if [ "$WEATHER_TEMPERATURE_UNITS" == 'F' ]; then
+		WEATHER_TEMPERATURE_OFFSET=0
+	else
+		WEATHER_TEMPERATURE_OFFSET=1
+		WEATHER_TEMPERATURE_UNITS='C'
+	fi
+	if [ "$DISPLAY_ENCODING" == 'UTF8' ]; then
+		WEATHER_DEGREE_SYMBOL="°"
+		WEATHER_DEGREE_WIDTH=2
+	else
+		WEATHER_DEGREE_SYMBOL="'"
+		WEATHER_DEGREE_WIDTH=1
+	fi
 	# Update polling time
 	MIN_SLEEP="$(GCD "$WEATHER_SECONDS_PER_POLL" "$MIN_SLEEP")"
 fi
 if [ "$SHOW_STATS" = 1 ]; then
-	# Add one section
-	((SECTS++))
+	:
 fi
 if [ "$SHOW_SNAKE" = 1 ]; then
-	# Add one section
-	((SECTS++))
+	:
 fi
 if [ "$MIN_SLEEP" -lt "5" ]; then MIN_SLEEP=5; fi
 
 # Clear the screen once
 clear
+SECTS=$(wc -l <<< "$SECT_LIST")
 STARTED=0
 
 # Loop the section processing code ad infinitum (exit with CTRL+c)
@@ -149,7 +202,10 @@ while true; do
 
 	# Make sure there is enough space for anything
 	if [ "$COLS" -lt 40 ] || [ "$ROWS" -lt 3 ]; then
+		clear
 		msg "Not enough space!"
+		sleep $MIN_SLEEP
+		continue
 	fi
 
 	# Compute optimal size per section
@@ -168,8 +224,12 @@ while true; do
 	COLS_PROCESSED=0
 
 	# Make sure there is enough space for optimal layout
-	if [ "$COLS" -lt "$((41*SECTS_X))" ] || [ "$ROWS" -lt "$((4*SECTS_Y))" ]
-		then msg "Not enough space!"
+	if [ "$COLS" -lt "$((41*SECTS_X-1))" ] || [ "$ROWS" -lt "$((4*SECTS_Y-1))" ]
+		then
+		clear
+		msg "Not enough space!"
+		sleep $MIN_SLEEP
+		continue
 	fi
 
 	# Print debugging info about all section metrics
@@ -207,6 +267,7 @@ while true; do
 		NEW_DRAW=()
 
 		# Get seconds per poll for this section
+# TODO: Get polling time by $CUR_SECT
 SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
 
 		# Check any previous data
@@ -227,6 +288,7 @@ SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
 			fi
 		fi
 
+# TODO: Delete this when done testing
 SIZE_FRESH=0
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
@@ -263,6 +325,8 @@ SIZE_FRESH=0
 				D_chil_f=$(grep -oPm1 "(?<=<windchill_f>)[^<]*" <<< "$DOWNLOAD")
 				D_chil_c=$(grep -oPm1 "(?<=<windchill_c>)[^<]*" <<< "$DOWNLOAD")
 				D_vis=$(grep -oPm1 "(?<=<visibility_mi>)[^<]*" <<< "$DOWNLOAD")
+				if [ -z "$D_chil_f" ]; then D_chil_f='-'; fi
+				if [ -z "$D_chil_c" ]; then D_chil_c='-'; fi
 				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
 $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 				DATA=$NEW_DATA
@@ -273,14 +337,61 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 			# If the drawing is old, redo it. In either case, store it
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array, handling string escapes
-				DATA_ESCAPED=${DATA// /$ESCAPE_SPACE}
+				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
 				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
 				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
-					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$ESCAPE_SPACE/ }
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$DISPLAY_ESCAPE_SPACE/ }
 				done
 
-				# Draw as many items as can fit
-				NEW_DRAW=()
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf " $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=""; done
+
+				# Smallest heights (3-7): just show most relevant info
+				if [ "$CUR_ROWS" -lt 8 ]; then
+					# Row 0 shows the weather status
+					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
+
+					# Row 1 shows the temperature
+					NEW_DRAW[1]=${DATA_ARRAY[$((1+WEATHER_TEMPERATURE_OFFSET\
+						))]}$WEATHER_DEGREE_SYMBOL$WEATHER_TEMPERATURE_UNITS
+					if [ "${DATA_ARRAY[$((3+WEATHER_TEMPERATURE_OFFSET))]}" \
+						!= '-' ]; then
+						NEW_DRAW[1]=${NEW_DRAW[1]}"  (feels like "\
+${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
+					fi
+					NEW_DRAW[1]=$(center "${NEW_DRAW[1]}" $((CUR_COLS+\
+						(1*$WEATHER_DEGREE_WIDTH))))
+
+					# Row 2 shows the humidity
+					NEW_DRAW[2]=$(center "Humidity: ${DATA_ARRAY[5]}%"\
+						$CUR_COLS)
+
+					# Row 3 shows the wind
+					if [ "$CUR_ROWS" -gt 5 ]; then
+						NEW_DRAW[3]=$(center "Wind: "${DATA_ARRAY[8]}\
+" ${DATA_ARRAY[9]}mph" $CUR_COLS)
+					fi
+
+					# Row 4 shows visibility
+					if [ "$CUR_ROWS" -gt 6 ]; then
+						NEW_DRAW[4]=$(center "Visibility: ${DATA_ARRAY[10]}mi"\
+							$CUR_COLS)
+					fi
+
+					# Row N-1 shows the update timestamp
+					if [ "$CUR_ROWS" -gt 3 ]; then
+						NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
+							"${DATA_ARRAY[6]}" "+%I:%M%p") | ${DATA_ARRAY[7]}"\
+							$CUR_COLS)
+					fi
+
+				# Medium heights (8-19): add some formatting
+				elif [ "$CUR_ROWS" -lt 20 ]; then
+# TODO: Formatting for medium display
+					# Row 0 shows the weather status
+					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
+
 #0 weather
 #1 temp_f
 #2 temp_c
@@ -295,19 +406,16 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 #11 location
 #12 latitude
 #13 longitude
-				NEW_DRAW[0]=${DATA_ARRAY[0]}
-				if [ "$WEATHER_TEMPERATURE_UNITS" == "C" ]; then
-					NEW_DRAW[1]=${DATA_ARRAY[2]}"°C (feels like "${DATA_ARRAY[4]}"°)"
+#`'\`'|`'\`'\`
+
+				# Largest heights (20+): the full Monty!
 				else
-					NEW_DRAW[1]=${DATA_ARRAY[1]}"°F (feels like "${DATA_ARRAY[3]}"°)"
-				fi
-				NEW_DRAW[2]="Humidity: ${DATA_ARRAY[5]}%"
-				if [ "$CUR_ROWS" -gt 3 ]; then
-					NEW_DRAW[3]=${DATA_ARRAY[6]}
+# TODO: Formatting for large display
+					# Row 0 shows the weather status
+					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
 				fi
 			fi
 		fi
-#`'\`'|`'\`'\`
 
 		# --- Stats -----------------------------------------
 		if [ "$CUR_SECT" == 'Y' ]; then
@@ -353,19 +461,18 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 				# Print top border as needed
 				if [ "$BORDER_TOP" = 1 ]; then
 					tput cup $ROWS_PROCESSED $COLS_PROCESSED
-					if [ "$CUR_X" -gt 0 ]; then
-						echo -n '+';
-						echo -n "$(head -c $CUR_COLS < "/dev/zero" | tr '\0' '-')"
+					if [ "$CUR_X" -gt 0 ]; then echo -n "$DISPLAY_SEPARATOR_C"; fi
+					if [ "$DISPLAY_SEPARATOR_H" == "-" ]; then
+						echo "$(head -c "$CUR_COLS" < "/dev/zero" | tr '\0' '-')"
 					else
-						echo -n '-';
-						echo -n "$(head -c $((CUR_COLS-1)) < "/dev/zero" | tr '\0' '-')"
+						printf "$DISPLAY_SEPARATOR_H%.0s" $(seq 1 $CUR_COLS)
 					fi
 				fi
 
 				# Print left border and content
 				for i in `seq 0 $((CUR_ROWS-1))`; do
 					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
-					if [ "$BORDER_LEFT" = 1 ]; then echo -n '|'; fi
+					if [ "$BORDER_LEFT" = 1 ]; then echo -n "$DISPLAY_SEPARATOR_V"; fi
 					echo -n "${DRAW[$i]}"
 				done
 			fi
