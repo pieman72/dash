@@ -2,12 +2,17 @@
 
 # Dash basic configuration
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
-function load_config(){
-	RET="$(awk -F "\\\\s*=\\\\s*" "/^$1/"' {print $2}' "$DASH_ROOT/dash.ini")"
-	[ -n "$RET" ] && echo $RET || echo $2
-}
+if [ -f "$DASH_ROOT/dash.ini" ]; then
+	function load_config(){
+		RET="$(awk -F "\\\\s*=\\\\s*" "/^$1/"' {print $2}'\
+			"$DASH_ROOT/dash.ini")"
+		[ -n "$RET" ] && echo $RET || echo $2
+	}
+else
+	function load_config(){ echo $2; }
+fi
 DBG=$(load_config "DBG" '0')
-DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" '')
+DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
 DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '8')
 DISPLAY_ESCAPE_SPACE=$(load_config "DISPLAY_ESCAPE_SPACE" '`')
 if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -19,6 +24,8 @@ else
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '-')
 	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '+')
 fi
+SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
+SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
 
 # Output formatting
 if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
@@ -27,26 +34,30 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_ULINE="[4m"
 	COLOR_BOLD_OFF="[21m"
 	COLOR_ULINE_OFF="[24m"
-	COLOR_NORM="[39m"
+	COLOR_NORM="[0;39m"
 	COLOR_GREN="[38;5;118m"
 	COLOR_BLUE="[38;5;81m"
 	COLOR_RED="[38;5;161m"
 	COLOR_PURP="[38;5;135m"
 	COLOR_ORNG="[38;5;208m"
-	COLOR_GREY="[38;5;245m"
+	COLOR_YELO="[38;5;227m"
+	COLOR_GRAY="[38;5;245m"
+	COLOR_WHIT="[38;5;15m"
 elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
 	COLOR_ULINE="[4m"
 	COLOR_BOLD_OFF="[21m"
 	COLOR_ULINE_OFF="[24m"
-	COLOR_NORM="[39m"
+	COLOR_NORM="[0;39m"
 	COLOR_GREN="[32m"
 	COLOR_BLUE="[34m"
 	COLOR_RED="[31m"
 	COLOR_PURP="[35m"
 	COLOR_ORNG="[33m"
-	COLOR_GREY="[37m"
+	COLOR_YELO="[33m"
+	COLOR_GRAY="[37m"
+	COLOR_WHIT="[1;37m"
 else
 	COLOR_RESET=""
 	COLOR_BOLD=""
@@ -59,17 +70,19 @@ else
 	COLOR_RED=""
 	COLOR_PURP=""
 	COLOR_ORNG=""
-	COLOR_GREY=""
+	COLOR_GRAY=""
 fi
 function msg(){
-	echo -e "$COLOR_RESET$COLOR_GREY[Dash]$COLOR_NORM $1\n"
+	echo -e "$COLOR_RESET$COLOR_GRAY[Dash]$COLOR_NORM $1\n"
 }
 function error(){
-	echo -e "$COLOR_RESET$COLOR_GREY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n" >&2
+	echo -e "$COLOR_RESET$COLOR_GRAY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n"\
+		>&2
 	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
 }
 function center(){
-	printf "%*s\n" $(( (${#1} + $2 + 1) / 2)) "${1}"
+	LEN=$(wc -m <<< "$1")
+	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
 }
 
 # Support functions
@@ -84,6 +97,15 @@ function GCD(){
 		REM=$((NUM%DEN))
 	done
 	echo $DEN
+}
+function randomize(){
+	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
+	RET=""
+	for i in `seq 0 $(($2 - 1))`; do
+		POS=$(grep -aom1 "[0-$LEN]" '/dev/urandom' | head -n 1)
+		RET="$RET"${1:$POS:1}
+	done
+	echo $RET
 }
 
 # Handle CLI args
@@ -155,15 +177,9 @@ if [ "$SHOW_NEWS" = 1 ]; then
 fi
 if [ "$SHOW_WEATHER" = 1 ]; then
 	# Get INI values
-	WEATHER_SECONDS_PER_POLL=$(awk -F "\\\\s*=\\\\s*"\
-		'/^WEATHER_SECONDS_PER_POLL/ {print $2}' "$DASH_ROOT/dash.ini")\
-		|| echo -n "600"
-	WEATHER_NOAA_STATION_CODE=$(awk -F "\\\\s*=\\\\s*"\
-		'/^WEATHER_NOAA_STATION_CODE/ {print $2}' "$DASH_ROOT/dash.ini")\
-		|| echo -n "KNYC"
-	WEATHER_TEMPERATURE_UNITS=$(awk -F "\\\\s*=\\\\s*"\
-		'/^WEATHER_TEMPERATURE_UNITS/ {print $2}' "$DASH_ROOT/dash.ini")\
-		|| echo -n "F"
+	WEATHER_SECONDS_PER_POLL=$(load_config "WEATHER_SECONDS_PER_POLL" "600")
+	WEATHER_NOAA_STATION_CODE=$(load_config "WEATHER_NOAA_STATION_CODE" "KNYC")
+	WEATHER_TEMPERATURE_UNITS=$(load_config "WEATHER_TEMPERATURE_UNITS" "F")
 	if [ "$WEATHER_TEMPERATURE_UNITS" == 'F' ]; then
 		WEATHER_TEMPERATURE_OFFSET=0
 	else
@@ -201,7 +217,8 @@ while true; do
 	ROWS=`tput lines`
 
 	# Make sure there is enough space for anything
-	if [ "$COLS" -lt 40 ] || [ "$ROWS" -lt 3 ]; then
+	if [ "$COLS" -lt "$SECTION_MIN_COLS" ] ||\
+			[ "$ROWS" -lt "$SECTION_MIN_ROWS" ]; then
 		clear
 		msg "Not enough space!"
 		sleep $MIN_SLEEP
@@ -209,7 +226,7 @@ while true; do
 	fi
 
 	# Compute optimal size per section
-	TEMP_WIDTH=$((60*(ROWS/COLS)+40))
+	TEMP_WIDTH=$(( (3*SECTION_MIN_COLS/2)*(ROWS/COLS) + SECTION_MIN_COLS ))
 	while [ "$((COLS/TEMP_WIDTH))" -gt "$SECTS" ]; do
 		((TEMP_WIDTH+=10))
 	done
@@ -224,8 +241,8 @@ while true; do
 	COLS_PROCESSED=0
 
 	# Make sure there is enough space for optimal layout
-	if [ "$COLS" -lt "$((41*SECTS_X-1))" ] || [ "$ROWS" -lt "$((4*SECTS_Y-1))" ]
-		then
+	if [ "$COLS" -lt "$(( (SECTION_MIN_COLS+1)*SECTS_X-1 ))" ]\
+			|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*SECTS_Y-1 ))" ]; then
 		clear
 		msg "Not enough space!"
 		sleep $MIN_SLEEP
@@ -311,20 +328,34 @@ SIZE_FRESH=0
 			if [ "$DATA_FRESH" = 0 ]; then
 				URL="http://www.weather.gov/xml/current_obs/"
 				DOWNLOAD=$(wget -q -O- "$URL$WEATHER_NOAA_STATION_CODE"".xml")
-				D_cred=$(grep -oPm1 "(?<=<credit_URL>)[^<]*" <<< "$DOWNLOAD")
-				D_loc=$(grep -oPm1 "(?<=<location>)[^<]*" <<< "$DOWNLOAD")
-				D_lat=$(grep -oPm1 "(?<=<latitude>)[^<]*" <<< "$DOWNLOAD")
-				D_lon=$(grep -oPm1 "(?<=<longitude>)[^<]*" <<< "$DOWNLOAD")
-				D_time=$(grep -oPm1 "(?<=<observation_time_rfc822>)[^<]*" <<< "$DOWNLOAD")
-				D_weather=$(grep -oPm1 "(?<=<weather>)[^<]*" <<< "$DOWNLOAD")
-				D_temp_f=$(grep -oPm1 "(?<=<temp_f>)[^<]*" <<< "$DOWNLOAD")
-				D_temp_c=$(grep -oPm1 "(?<=<temp_c>)[^<]*" <<< "$DOWNLOAD")
-				D_hu=$(grep -oPm1 "(?<=<relative_humidity>)[^<]*" <<< "$DOWNLOAD")
-				D_w_dir=$(grep -oPm1 "(?<=<wind_dir>)[^<]*" <<< "$DOWNLOAD")
-				D_w_mph=$(grep -oPm1 "(?<=<wind_mph>)[^<]*" <<< "$DOWNLOAD")
-				D_chil_f=$(grep -oPm1 "(?<=<windchill_f>)[^<]*" <<< "$DOWNLOAD")
-				D_chil_c=$(grep -oPm1 "(?<=<windchill_c>)[^<]*" <<< "$DOWNLOAD")
-				D_vis=$(grep -oPm1 "(?<=<visibility_mi>)[^<]*" <<< "$DOWNLOAD")
+				D_cred=$(grep -oPm1 "(?<=<credit_URL>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_loc=$(grep -oPm1 "(?<=<location>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_lat=$(grep -oPm1 "(?<=<latitude>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_lon=$(grep -oPm1 "(?<=<longitude>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_time=$(grep -oPm1 "(?<=<observation_time_rfc822>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_weather=$(grep -oPm1 "(?<=<weather>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_temp_f=$(grep -oPm1 "(?<=<temp_f>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_temp_c=$(grep -oPm1 "(?<=<temp_c>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_hu=$(grep -oPm1 "(?<=<relative_humidity>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_w_dir=$(grep -oPm1 "(?<=<wind_dir>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_w_mph=$(grep -oPm1 "(?<=<wind_mph>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_chil_f=$(grep -oPm1 "(?<=<windchill_f>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_chil_c=$(grep -oPm1 "(?<=<windchill_c>)[^<]*"\
+					<<< "$DOWNLOAD")
+				D_vis=$(grep -oPm1 "(?<=<visibility_mi>)[^<]*"\
+					<<< "$DOWNLOAD")
 				if [ -z "$D_chil_f" ]; then D_chil_f='-'; fi
 				if [ -z "$D_chil_c" ]; then D_chil_c='-'; fi
 				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
@@ -344,7 +375,8 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 				done
 
 				# Create an empty array of rows
-				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf " $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=""; done
 
 				# Smallest heights (3-7): just show most relevant info
@@ -388,9 +420,106 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 
 				# Medium heights (8-19): add some formatting
 				elif [ "$CUR_ROWS" -lt 20 ]; then
-# TODO: Formatting for medium display
-					# Row 0 shows the weather status
-					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Weather\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+					# Rows 1-3 are the weather status and its border
+					DECORATION_STRING=" "
+					DECORATION_COLOR="$COLOR_NORM"
+					if [ "${DATA_ARRAY[0]}" == "Fair" ]; then
+						DECORATION_STRING="-$DISPLAY_ESCAPE_SPACE"
+						DECORATION_COLOR="$COLOR_YELO"
+					elif [ "${DATA_ARRAY[0]}" == "A Few Clouds" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="~☁$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+					elif [ "${DATA_ARRAY[0]}" == "Partly Cloudy" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁3$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_GRAY"
+					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
+						DECORATION_STRING='````'"'''\\\\\|"
+						DECORATION_COLOR="$COLOR_BLUE"
+					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="❄❄.\"$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+					else
+						DECORATION_STRING="?$DISPLAY_ESCAPE_SPACE"
+						DECORATION_COLOR="$COLOR_NORM"
+					fi
+					NEW_DRAW[1]=$DECORATION_COLOR$(center $(randomize\
+						$DECORATION_STRING $(( ${#DATA_ARRAY[0]}+4 )))\
+						$CUR_COLS)$COLOR_NORM
+					NEW_DRAW[3]=$DECORATION_COLOR$(center $(randomize\
+						$DECORATION_STRING $(( ${#DATA_ARRAY[0]}+4 )))\
+						$CUR_COLS)$COLOR_NORM
+					NEW_DRAW[1]=${NEW_DRAW[1]//$DISPLAY_ESCAPE_SPACE/ }
+					NEW_DRAW[3]=${NEW_DRAW[3]//$DISPLAY_ESCAPE_SPACE/ }
+					NEW_DRAW[2]=$DECORATION_COLOR$(center\
+						"${DECORATION_STRING:0:1} ${DATA_ARRAY[0]} \
+${DECORATION_STRING:0:1}" $CUR_COLS)$COLOR_NORM
+
+					# Row 4 is blank
+
+					# Row 5 shows the temperature
+					NEW_DRAW[5]=${DATA_ARRAY[$((1+WEATHER_TEMPERATURE_OFFSET\
+						))]}$WEATHER_DEGREE_SYMBOL$WEATHER_TEMPERATURE_UNITS
+					if [ "${DATA_ARRAY[$((3+WEATHER_TEMPERATURE_OFFSET))]}" \
+						!= '-' ]; then
+						NEW_DRAW[5]=${NEW_DRAW[5]}"  (feels like "\
+${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
+					fi
+					NEW_DRAW[5]=$(center "${NEW_DRAW[5]}" $((CUR_COLS+\
+						(1*$WEATHER_DEGREE_WIDTH))))
+
+					# Row 6 shows the humidity
+					NEW_DRAW[6]=$(center "Humidity: ${DATA_ARRAY[5]}%"\
+						$CUR_COLS)
+
+					# Row 7 shows the wind
+					if [ "$CUR_ROWS" -gt 9 ]; then
+						NEW_DRAW[7]=$(center "Wind: "${DATA_ARRAY[8]}\
+" ${DATA_ARRAY[9]}mph" $CUR_COLS)
+					fi
+
+					# Row 8 shows visibility
+					if [ "$CUR_ROWS" -gt 10 ]; then
+						NEW_DRAW[8]=$(center "Visibility: ${DATA_ARRAY[10]}mi"\
+							$CUR_COLS)
+					fi
+
+					# Row N-2 shows the name of the observatory
+					if [ "$CUR_ROWS" -gt 11 ]; then
+						NEW_DRAW[$((CUR_ROWS-2))]=$(center\
+							"From: ${DATA_ARRAY[11]}" $CUR_COLS)
+					fi
+
+					# Row N-1 shows the update timestamp
+					if [ "$CUR_ROWS" -gt 7 ]; then
+						NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
+							"${DATA_ARRAY[6]}" "+%I:%M%p") | ${DATA_ARRAY[7]}"\
+							$CUR_COLS)
+					fi
 
 #0 weather
 #1 temp_f
@@ -406,7 +535,6 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 #11 location
 #12 latitude
 #13 longitude
-#`'\`'|`'\`'\`
 
 				# Largest heights (20+): the full Monty!
 				else
@@ -461,9 +589,11 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 				# Print top border as needed
 				if [ "$BORDER_TOP" = 1 ]; then
 					tput cup $ROWS_PROCESSED $COLS_PROCESSED
-					if [ "$CUR_X" -gt 0 ]; then echo -n "$DISPLAY_SEPARATOR_C"; fi
+					if [ "$CUR_X" -gt 0 ]; then
+						echo -n $DISPLAY_SEPARATOR_C;
+					fi
 					if [ "$DISPLAY_SEPARATOR_H" == "-" ]; then
-						echo "$(head -c "$CUR_COLS" < "/dev/zero" | tr '\0' '-')"
+						echo "$(head -c "$CUR_COLS" < "/dev/zero"|tr '\0' '-')"
 					else
 						printf "$DISPLAY_SEPARATOR_H%.0s" $(seq 1 $CUR_COLS)
 					fi
@@ -472,7 +602,9 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 				# Print left border and content
 				for i in `seq 0 $((CUR_ROWS-1))`; do
 					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
-					if [ "$BORDER_LEFT" = 1 ]; then echo -n "$DISPLAY_SEPARATOR_V"; fi
+					if [ "$BORDER_LEFT" = 1 ]; then
+						echo -n "$DISPLAY_SEPARATOR_V";
+					fi
 					echo -n "${DRAW[$i]}"
 				done
 			fi
