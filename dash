@@ -217,17 +217,17 @@ while true; do
 	if [ "$COLS" -lt "$SECTION_MIN_COLS" ] ||\
 			[ "$ROWS" -lt "$SECTION_MIN_ROWS" ]; then
 		clear
-		msg "Not enough space!"
-		sleep $REFRESH_RATE_SECONDS
+		msg "Screen too small!"
+		read -t $REFRESH_RATE_SECONDS TMP
 		continue
 	fi
 
 	# Compute optimal size per section
 	TEMP_WIDTH=$(( (3*SECTION_MIN_COLS/2)*(ROWS/COLS) + SECTION_MIN_COLS ))
-	while [ "$((COLS/TEMP_WIDTH))" -gt "$SECTS" ]; do
+	while [ "$((SECTS * (TEMP_WIDTH+1) - 1))" -lt "$COLS" ]; do
 		((TEMP_WIDTH+=10))
 	done
-	SECTS_X=$((COLS/TEMP_WIDTH))
+	SECTS_X=$(( (COLS+1)/(TEMP_WIDTH+1) ))
 	SECTS_Y=$((SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0)))
 	BASE_COLS=$((COLS/SECTS_X))
 	BASE_ROWS=$((ROWS/SECTS_Y))
@@ -241,8 +241,8 @@ while true; do
 	if [ "$COLS" -lt "$(( (SECTION_MIN_COLS+1)*SECTS_X-1 ))" ]\
 			|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*SECTS_Y-1 ))" ]; then
 		clear
-		msg "Not enough space!"
-		sleep $REFRESH_RATE_SECONDS
+		msg "Not enough space for all tiles"
+		read -t $REFRESH_RATE_SECONDS TMP
 		continue
 	fi
 
@@ -424,9 +424,11 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 					# Rows 1-3 are the weather status and its border
 					DECORATION_STRING=" "
 					DECORATION_COLOR="$COLOR_NORM"
+					# Fair
 					if [ "${DATA_ARRAY[0]}" == "Fair" ]; then
 						DECORATION_STRING="-$DISPLAY_ESCAPE_SPACE"
 						DECORATION_COLOR="$COLOR_YELO"
+					# A Few Clouds
 					elif [ "${DATA_ARRAY[0]}" == "A Few Clouds" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 							DECORATION_STRING="~☁$DISPLAY_ESCAPE_SPACE\
@@ -435,24 +437,38 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 						fi
-						DECORATION_COLOR="$COLOR_WHIT"
+						DECORATION_COLOR="$COLOR_YELO"
+					# Partly Cloudy
 					elif [ "${DATA_ARRAY[0]}" == "Partly Cloudy" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+					# Mostly Cloudy
+					elif [ "${DATA_ARRAY[0]}" == "Mostly Cloudy" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE"
 						else
 							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
 						fi
-						DECORATION_COLOR="$COLOR_WHIT"
+						DECORATION_COLOR="$COLOR_GRAY"
+					# Overcast
 					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁3$DISPLAY_ESCAPE_SPACE"
+							DECORATION_STRING="☁☁☁3~"
 						else
-							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE"
+							DECORATION_STRING="333~~"
 						fi
 						DECORATION_COLOR="$COLOR_GRAY"
+					# Rain
 					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
 						DECORATION_STRING='````'"'''\\\\\|"
 						DECORATION_COLOR="$COLOR_BLUE"
+					# Snow
 					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 							DECORATION_STRING="❄❄.\"$DISPLAY_ESCAPE_SPACE"
@@ -460,6 +476,7 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
 						fi
 						DECORATION_COLOR="$COLOR_WHIT"
+					# ???
 					else
 						DECORATION_STRING="?$DISPLAY_ESCAPE_SPACE"
 						DECORATION_COLOR="$COLOR_NORM"
@@ -619,7 +636,7 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 
 	# Wait until the next refresh
 	STARTED=1
-	sleep $REFRESH_RATE_SECONDS
+	read -t $REFRESH_RATE_SECONDS TMP
 
 # Return to start of section processing
 done
