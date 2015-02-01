@@ -12,6 +12,7 @@ else
 	function load_config(){ echo $2; }
 fi
 DBG=$(load_config "DBG" '0')
+REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '5')
 DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
 DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '8')
 DISPLAY_ESCAPE_SPACE=$(load_config "DISPLAY_ESCAPE_SPACE" '`')
@@ -165,7 +166,6 @@ privileges).\n"
 fi
 
 # Additional configuration for individual sections
-MIN_SLEEP=600
 if [ "$SHOW_CALENDAR" = 1 ]; then
 	:
 fi
@@ -193,8 +193,6 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 		WEATHER_DEGREE_SYMBOL="'"
 		WEATHER_DEGREE_WIDTH=1
 	fi
-	# Update polling time
-	MIN_SLEEP="$(GCD "$WEATHER_SECONDS_PER_POLL" "$MIN_SLEEP")"
 fi
 if [ "$SHOW_STATS" = 1 ]; then
 	:
@@ -202,7 +200,6 @@ fi
 if [ "$SHOW_SNAKE" = 1 ]; then
 	:
 fi
-if [ "$MIN_SLEEP" -lt "5" ]; then MIN_SLEEP=5; fi
 
 # Clear the screen once
 clear
@@ -221,7 +218,7 @@ while true; do
 			[ "$ROWS" -lt "$SECTION_MIN_ROWS" ]; then
 		clear
 		msg "Not enough space!"
-		sleep $MIN_SLEEP
+		sleep $REFRESH_RATE_SECONDS
 		continue
 	fi
 
@@ -245,7 +242,7 @@ while true; do
 			|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*SECTS_Y-1 ))" ]; then
 		clear
 		msg "Not enough space!"
-		sleep $MIN_SLEEP
+		sleep $REFRESH_RATE_SECONDS
 		continue
 	fi
 
@@ -622,7 +619,7 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 
 	# Wait until the next refresh
 	STARTED=1
-	sleep $MIN_SLEEP
+	sleep $REFRESH_RATE_SECONDS
 
 # Return to start of section processing
 done
