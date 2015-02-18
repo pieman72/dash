@@ -14,7 +14,7 @@ fi
 DBG=$(load_config "DBG" '0')
 REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '5')
 DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
-DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '8')
+DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '16')
 DISPLAY_ESCAPE_SPACE=$(load_config "DISPLAY_ESCAPE_SPACE" '`')
 if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '│')
@@ -44,7 +44,7 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_YELO="[38;5;227m"
 	COLOR_GRAY="[38;5;245m"
 	COLOR_WHIT="[38;5;15m"
-elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
+elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
 	COLOR_ULINE="[4m"
@@ -188,10 +188,8 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	fi
 	if [ "$DISPLAY_ENCODING" == 'UTF8' ]; then
 		WEATHER_DEGREE_SYMBOL="°"
-		WEATHER_DEGREE_WIDTH=2
 	else
 		WEATHER_DEGREE_SYMBOL="'"
-		WEATHER_DEGREE_WIDTH=1
 	fi
 fi
 if [ "$SHOW_STATS" = 1 ]; then
@@ -227,6 +225,7 @@ while true; do
 	while [ "$((SECTS * (TEMP_WIDTH+1) - 1))" -lt "$COLS" ]; do
 		((TEMP_WIDTH+=10))
 	done
+	TEMP_WIDTH=$(( TEMP_WIDTH>COLS ? COLS : TEMP_WIDTH ))
 	SECTS_X=$(( (COLS+1)/(TEMP_WIDTH+1) ))
 	SECTS_Y=$((SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0)))
 	BASE_COLS=$((COLS/SECTS_X))
@@ -296,7 +295,7 @@ SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
 				# See if the display size is still correct
 				OLD_SIZE=$(head -n 3 "$DASH_ROOT/$CUR_SECT"".dash" | tail -n 1)
 				OLD_DRAW=$(tail -n +4 "$DASH_ROOT/$CUR_SECT"".dash")
-				if [ $OLD_SIZE == $NEW_SIZE ]; then
+				if [ "$OLD_SIZE" == "$NEW_SIZE" ]; then
 					SIZE_FRESH=1
 				fi
 			fi
@@ -355,6 +354,8 @@ SIZE_FRESH=0
 					<<< "$DOWNLOAD")
 				if [ -z "$D_chil_f" ]; then D_chil_f='-'; fi
 				if [ -z "$D_chil_c" ]; then D_chil_c='-'; fi
+				if [ -z "$D_w_dir" ]; then D_w_dir='-'; fi
+				if [ -z "$D_w_mph" ]; then D_w_mph='-'; fi
 				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
 $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 				DATA=$NEW_DATA
@@ -389,8 +390,7 @@ $D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
 						NEW_DRAW[1]=${NEW_DRAW[1]}"  (feels like "\
 ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 					fi
-					NEW_DRAW[1]=$(center "${NEW_DRAW[1]}" $((CUR_COLS+\
-						(1*$WEATHER_DEGREE_WIDTH))))
+					NEW_DRAW[1]=$(center "${NEW_DRAW[1]}" $CUR_COLS)
 
 					# Row 2 shows the humidity
 					NEW_DRAW[2]=$(center "Humidity: ${DATA_ARRAY[5]}%"\
@@ -468,6 +468,16 @@ $DISPLAY_ESCAPE_SPACE"
 					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
 						DECORATION_STRING='````'"'''\\\\\|"
 						DECORATION_COLOR="$COLOR_BLUE"
+					# Light Snow
+					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING=".❄\"$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING='.`"'"$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
 					# Snow
 					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -503,8 +513,7 @@ ${DECORATION_STRING:0:1}" $CUR_COLS)$COLOR_NORM
 						NEW_DRAW[5]=${NEW_DRAW[5]}"  (feels like "\
 ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 					fi
-					NEW_DRAW[5]=$(center "${NEW_DRAW[5]}" $((CUR_COLS+\
-						(1*$WEATHER_DEGREE_WIDTH))))
+					NEW_DRAW[5]=$(center "${NEW_DRAW[5]}" $CUR_COLS)
 
 					# Row 6 shows the humidity
 					NEW_DRAW[6]=$(center "Humidity: ${DATA_ARRAY[5]}%"\
@@ -512,8 +521,21 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 
 					# Row 7 shows the wind
 					if [ "$CUR_ROWS" -gt 9 ]; then
-						NEW_DRAW[7]=$(center "Wind: "${DATA_ARRAY[8]}\
-" ${DATA_ARRAY[9]}mph" $CUR_COLS)
+						if [ "${DATA_ARRAY[8]}" != '-' ]; then
+							if [ "${DATA_ARRAY[9]}" != '-' ]; then
+								NEW_DRAW[7]="Wind: ${DATA_ARRAY[8]} "\
+${DATA_ARRAY[9]}"mph"
+							else
+								NEW_DRAW[7]="Wind: ${DATA_ARRAY[8]}"
+							fi
+						else
+							if [ "${DATA_ARRAY[9]}" != '-' ]; then
+								NEW_DRAW[7]="Wind: ${DATA_ARRAY[9]}mph"
+							else
+								NEW_DRAW[7]="Wind: - unavailable -"
+							fi
+						fi
+						NEW_DRAW[7]=$(center "${NEW_DRAW[7]}" $CUR_COLS)
 					fi
 
 					# Row 8 shows visibility
@@ -615,6 +637,11 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 
 				# Print left border and content
 				for i in `seq 0 $((CUR_ROWS-1))`; do
+					# Clear the row first
+					tput cup $((ROWS_PROCESSED+BORDER_TOP+i))\
+						$((COLS_PROCESSED+BORDER_LEFT))
+					printf "%*s" $CUR_COLS " "
+					# Reset the cursor and print content
 					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
 					if [ "$BORDER_LEFT" = 1 ]; then
 						echo -n "$DISPLAY_SEPARATOR_V";
