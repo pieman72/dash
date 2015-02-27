@@ -38,7 +38,8 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_ULINE_OFF="[24m"
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[38;5;118m"
-	COLOR_BLUE="[38;5;81m"
+	COLOR_BLUE="[38;5;26m"
+	COLOR_LBLU="[38;5;81m"
 	COLOR_RED="[38;5;161m"
 	COLOR_PURP="[38;5;135m"
 	COLOR_ORNG="[38;5;208m"
@@ -47,7 +48,8 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_WHIT="[38;5;15m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[48;5;118m"
-	COLOR_BG_BLUE="[48;5;81m"
+	COLOR_BG_BLUE="[48;5;26m"
+	COLOR_BG_LBLU="[48;5;81m"
 	COLOR_BG_RED="[48;5;161m"
 	COLOR_BG_PURP="[48;5;135m"
 	COLOR_BG_ORNG="[48;5;208m"
@@ -63,6 +65,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[32m"
 	COLOR_BLUE="[34m"
+	COLOR_LBLU="[1;34m"
 	COLOR_RED="[31m"
 	COLOR_PURP="[35m"
 	COLOR_ORNG="[33m"
@@ -72,25 +75,13 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_BG_NORM="[0;49m"
 	COLOR_BG_GREN="[42m"
 	COLOR_BG_BLUE="[44m"
+	COLOR_BG_LBLU="[1;44m"
 	COLOR_BG_RED="[41m"
 	COLOR_BG_PURP="[45m"
 	COLOR_BG_ORNG="[43m"
 	COLOR_BG_YELO="[43m"
 	COLOR_BG_GRAY="[47m"
 	COLOR_BG_WHIT="[1;47m"
-else
-	COLOR_RESET=""
-	COLOR_BOLD=""
-	COLOR_ULINE=""
-	COLOR_BOLD_OFF=""
-	COLOR_ULINE_OFF=""
-	COLOR_NORM=""
-	COLOR_GREN=""
-	COLOR_BLUE=""
-	COLOR_RED=""
-	COLOR_PURP=""
-	COLOR_ORNG=""
-	COLOR_GRAY=""
 fi
 function msg(){
 	echo -e "$COLOR_RESET$COLOR_GRAY[Dash]$COLOR_NORM $1\n"
@@ -598,9 +589,12 @@ $DISPLAY_ESCAPE_SPACE"
 					# Light Freezing Rain Fog/Mist
 					elif [ "${DATA_ARRAY[0]}" ==\
 						"Light Freezing Rain Fog/Mist" ]; then
-# TODO
-						DECORATION_STRING='````'"'''\\\\\|"
-						DECORATION_COLOR="$COLOR_BLUE"
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="\`\`\\\\☁~   "
+						else
+							DECORATION_STRING="\`\`\\\\3~   "
+						fi
+						DECORATION_COLOR="$COLOR_LBLU"
 					# Light Snow
 					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -759,9 +753,13 @@ $DISPLAY_ESCAPE_SPACE"
 					# Light Freezing Rain Fog/Mist
 					elif [ "${DATA_ARRAY[0]}" ==\
 						"Light Freezing Rain Fog/Mist" ]; then
-# TODO
-						DECORATION_STRING='````'"'''\\\\\|"
-						DECORATION_COLOR="$COLOR_BLUE"
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="\`\`\\\\☁~   "
+						else
+							DECORATION_STRING="\`\`\\\\3~   "
+						fi
+						DECORATION_COLOR="$COLOR_LBLU"
+						DECORATION_COLOR_BG="$COLOR_BG_LBLU"
 					# Light Snow
 					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -987,7 +985,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 
 	# Wait until the next refresh
 	STARTED=1
-	TMP="tmp"
+	TMP="nop"
 	read -t $REFRESH_RATE_SECONDS TMP
 	if [ "$TMP" == "r" ]; then STARTED=0; fi
 }
