@@ -27,6 +27,7 @@ else
 fi
 SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
 SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
+STARTED=0
 
 # Output formatting
 if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
@@ -44,6 +45,15 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_YELO="[38;5;227m"
 	COLOR_GRAY="[38;5;245m"
 	COLOR_WHIT="[38;5;15m"
+	COLOR_BG_NORM="[49m"
+	COLOR_BG_GREN="[48;5;118m"
+	COLOR_BG_BLUE="[48;5;81m"
+	COLOR_BG_RED="[48;5;161m"
+	COLOR_BG_PURP="[48;5;135m"
+	COLOR_BG_ORNG="[48;5;208m"
+	COLOR_BG_YELO="[48;5;227m"
+	COLOR_BG_GRAY="[48;5;245m"
+	COLOR_BG_WHIT="[48;5;15m"
 elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
@@ -59,6 +69,15 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_YELO="[33m"
 	COLOR_GRAY="[37m"
 	COLOR_WHIT="[1;37m"
+	COLOR_BG_NORM="[0;49m"
+	COLOR_BG_GREN="[42m"
+	COLOR_BG_BLUE="[44m"
+	COLOR_BG_RED="[41m"
+	COLOR_BG_PURP="[45m"
+	COLOR_BG_ORNG="[43m"
+	COLOR_BG_YELO="[43m"
+	COLOR_BG_GRAY="[47m"
+	COLOR_BG_WHIT="[1;47m"
 else
 	COLOR_RESET=""
 	COLOR_BOLD=""
@@ -85,6 +104,87 @@ function center(){
 	LEN=$(wc -m <<< "$1")
 	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
 }
+declare -A LARGE_READ_OUT
+LARGE_READ_OUT["0",0]=" XXX "
+LARGE_READ_OUT["0",1]="X   X"
+LARGE_READ_OUT["0",2]="X   X"
+LARGE_READ_OUT["0",3]="X   X"
+LARGE_READ_OUT["0",4]=" XXX "
+LARGE_READ_OUT["1",0]="  X  "
+LARGE_READ_OUT["1",1]=" XX  "
+LARGE_READ_OUT["1",2]="  X  "
+LARGE_READ_OUT["1",3]="  X  "
+LARGE_READ_OUT["1",4]=" XXX "
+LARGE_READ_OUT["2",0]=" XXX "
+LARGE_READ_OUT["2",1]="X   X"
+LARGE_READ_OUT["2",2]="  XX "
+LARGE_READ_OUT["2",3]=" X   "
+LARGE_READ_OUT["2",4]="XXXXX"
+LARGE_READ_OUT["3",0]="XXXX "
+LARGE_READ_OUT["3",1]="    X"
+LARGE_READ_OUT["3",2]=" XXX "
+LARGE_READ_OUT["3",3]="    X"
+LARGE_READ_OUT["3",4]="XXXX "
+LARGE_READ_OUT["4",0]="   X "
+LARGE_READ_OUT["4",1]="  XX "
+LARGE_READ_OUT["4",2]=" X X "
+LARGE_READ_OUT["4",3]="XXXXX"
+LARGE_READ_OUT["4",4]="   X "
+LARGE_READ_OUT["5",0]="XXXXX"
+LARGE_READ_OUT["5",1]="X    "
+LARGE_READ_OUT["5",2]="XXXX "
+LARGE_READ_OUT["5",3]="    X"
+LARGE_READ_OUT["5",4]="XXXX "
+LARGE_READ_OUT["6",0]=" XXXX"
+LARGE_READ_OUT["6",1]="X    "
+LARGE_READ_OUT["6",2]="XXXX "
+LARGE_READ_OUT["6",3]="X   X"
+LARGE_READ_OUT["6",4]=" XXX "
+LARGE_READ_OUT["7",0]="XXXXX"
+LARGE_READ_OUT["7",1]="    X"
+LARGE_READ_OUT["7",2]="   X "
+LARGE_READ_OUT["7",3]="  X  "
+LARGE_READ_OUT["7",4]="  X  "
+LARGE_READ_OUT["8",0]=" XXX "
+LARGE_READ_OUT["8",1]="X   X"
+LARGE_READ_OUT["8",2]=" XXX "
+LARGE_READ_OUT["8",3]="X   X"
+LARGE_READ_OUT["8",4]=" XXX "
+LARGE_READ_OUT["9",0]=" XXX "
+LARGE_READ_OUT["9",1]="X   X"
+LARGE_READ_OUT["9",2]="XXXXX"
+LARGE_READ_OUT["9",3]="    X"
+LARGE_READ_OUT["9",4]="XXXX "
+LARGE_READ_OUT["-",0]="     "
+LARGE_READ_OUT["-",1]="     "
+LARGE_READ_OUT["-",2]=" XXXX"
+LARGE_READ_OUT["-",3]="     "
+LARGE_READ_OUT["-",4]="     "
+LARGE_READ_OUT["F",0]="XXXXX"
+LARGE_READ_OUT["F",1]="X    "
+LARGE_READ_OUT["F",2]="XXXX "
+LARGE_READ_OUT["F",3]="X    "
+LARGE_READ_OUT["F",4]="X    "
+LARGE_READ_OUT["C",0]=" XXX "
+LARGE_READ_OUT["C",1]="X   X"
+LARGE_READ_OUT["C",2]="X    "
+LARGE_READ_OUT["C",3]="X   X"
+LARGE_READ_OUT["C",4]=" XXX "
+LARGE_READ_OUT[".",0]="     "
+LARGE_READ_OUT[".",1]="     "
+LARGE_READ_OUT[".",2]="     "
+LARGE_READ_OUT[".",3]="     "
+LARGE_READ_OUT[".",4]="  X  "
+LARGE_READ_OUT["°",0]=" XXX "
+LARGE_READ_OUT["°",1]=" X X "
+LARGE_READ_OUT["°",2]=" XXX "
+LARGE_READ_OUT["°",3]="     "
+LARGE_READ_OUT["°",4]="     "
+LARGE_READ_OUT["'",0]=" XXX "
+LARGE_READ_OUT["'",1]=" X X "
+LARGE_READ_OUT["'",2]=" XXX "
+LARGE_READ_OUT["'",3]="     "
+LARGE_READ_OUT["'",4]="     "
 
 # Support functions
 function GCD(){
@@ -102,11 +202,25 @@ function GCD(){
 function randomize(){
 	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
 	RET=""
+	ORDER=""
+	while [ "${#ORDER}" -lt "$2" ]; do
+		ORDER=$ORDER$(grep -o "[0-$LEN]"<<<$(date +%s%3N|md5sum)|paste -sd "")
+	done
 	for i in `seq 0 $(($2 - 1))`; do
-		POS=$(grep -aom1 "[0-$LEN]" '/dev/urandom' | head -n 1)
+		POS=${ORDER:$i:1}
 		RET="$RET"${1:$POS:1}
 	done
 	echo $RET
+}
+function handleWindowChange(){
+	render_sections
+}
+function handleInterrupt(){
+	exit 0
+}
+function handleExit(){
+	stty echo
+	tput rmcup
 }
 
 # Handle CLI args
@@ -136,6 +250,7 @@ while getopt -Q -q -o 'HCENWYTSdz:' -n 'dash' -- $@; do
 done
 if [[ -n "$1" ]]; then error "Unrecognized option $1"; fi
 SECT_LIST=`echo $SECT_LIST | grep -o .`
+SECTS=$(wc -l <<< "$SECT_LIST")
 
 # Only in the case of the help menu being requested, print help and exit
 if [ "$SHOW_HELP" = 1 ]; then
@@ -167,13 +282,13 @@ fi
 
 # Additional configuration for individual sections
 if [ "$SHOW_CALENDAR" = 1 ]; then
-	:
+	CALENDAR_SECONDS_PER_POLL=$(load_config "CALENDAR_SECONDS_PER_POLL" "600")
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
-	:
+	EMAIL_SECONDS_PER_POLL=$(load_config "EMAIL_SECONDS_PER_POLL" "300")
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
-	:
+	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
 fi
 if [ "$SHOW_WEATHER" = 1 ]; then
 	# Get INI values
@@ -193,19 +308,21 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	fi
 fi
 if [ "$SHOW_STATS" = 1 ]; then
-	:
+	STATS_SECONDS_PER_POLL=$(load_config "STATS_SECONDS_PER_POLL" "60")
 fi
 if [ "$SHOW_SNAKE" = 1 ]; then
-	:
+	SNAKE_SECONDS_PER_POLL=$(load_config "SNAKE_SECONDS_PER_POLL" "10")
 fi
 
-# Clear the screen once
-clear
-SECTS=$(wc -l <<< "$SECT_LIST")
-STARTED=0
+# Save the old screen, block input echo, and set signal traps
+tput smcup
+stty -echo
+trap handleWindowChange WINCH
+trap handleInterrupt INT
+trap handleExit EXIT
 
-# Loop the section processing code ad infinitum (exit with CTRL+c)
-while true; do
+# Handle the actual rendering of dash sections
+function render_sections(){
 	# Get loop params from shell
 	NEW_DATE=`date +%s`
 	COLS=`tput cols`
@@ -280,8 +397,19 @@ while true; do
 		NEW_DRAW=()
 
 		# Get seconds per poll for this section
-# TODO: Get polling time by $CUR_SECT
-SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
+		if [ "$CUR_SECT" == 'C' ]; then
+			SECONDS_PER_POLL=$CALENDAR_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'E' ]; then
+			SECONDS_PER_POLL=$EMAIL_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'N' ]; then
+			SECONDS_PER_POLL=$NEWS_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'W' ]; then
+			SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'Y' ]; then
+			SECONDS_PER_POLL=$STATS_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'S' ]; then
+			SECONDS_PER_POLL=$SNAKE_SECONDS_PER_POLL
+		fi
 
 		# Check any previous data
 		if [ -f "$DASH_ROOT/$CUR_SECT"".dash" ]; then
@@ -295,14 +423,12 @@ SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
 				# See if the display size is still correct
 				OLD_SIZE=$(head -n 3 "$DASH_ROOT/$CUR_SECT"".dash" | tail -n 1)
 				OLD_DRAW=$(tail -n +4 "$DASH_ROOT/$CUR_SECT"".dash")
-				if [ "$OLD_SIZE" == "$NEW_SIZE" ]; then
+				if [ "$OLD_SIZE" == "$NEW_SIZE" ] && [ "$STARTED" == 1 ] ; then
 					SIZE_FRESH=1
 				fi
 			fi
 		fi
 
-# TODO: Delete this when done testing
-SIZE_FRESH=0
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			echo -n ""
@@ -310,6 +436,7 @@ SIZE_FRESH=0
 
 		# --- Email -----------------------------------------
 		if [ "$CUR_SECT" == 'E' ]; then
+#while sleep 30; do tput sc;tput cup 0 $(($(tput cols)-15));echo -n " New Emails: $(curl -u username:password --silent https://mail.google.com/mail/feed/atom | grep 'fullcount' | grep -o '[0-9]\+')";tput rc; done &
 			echo -n ""
 		fi
 
@@ -337,9 +464,9 @@ SIZE_FRESH=0
 				D_weather=$(grep -oPm1 "(?<=<weather>)[^<]*"\
 					<<< "$DOWNLOAD")
 				D_temp_f=$(grep -oPm1 "(?<=<temp_f>)[^<]*"\
-					<<< "$DOWNLOAD")
+					<<< "$DOWNLOAD"); D_temp_f=$(sed "s/\..//" <<< "$D_temp_f")
 				D_temp_c=$(grep -oPm1 "(?<=<temp_c>)[^<]*"\
-					<<< "$DOWNLOAD")
+					<<< "$DOWNLOAD"); D_temp_c=$(sed "s/\..//" <<< "$D_temp_c")
 				D_hu=$(grep -oPm1 "(?<=<relative_humidity>)[^<]*"\
 					<<< "$DOWNLOAD")
 				D_w_dir=$(grep -oPm1 "(?<=<wind_dir>)[^<]*"\
@@ -468,6 +595,12 @@ $DISPLAY_ESCAPE_SPACE"
 					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
 						DECORATION_STRING='````'"'''\\\\\|"
 						DECORATION_COLOR="$COLOR_BLUE"
+					# Light Freezing Rain Fog/Mist
+					elif [ "${DATA_ARRAY[0]}" ==\
+						"Light Freezing Rain Fog/Mist" ]; then
+# TODO
+						DECORATION_STRING='````'"'''\\\\\|"
+						DECORATION_COLOR="$COLOR_BLUE"
 					# Light Snow
 					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -557,26 +690,217 @@ ${DATA_ARRAY[9]}"mph"
 							$CUR_COLS)
 					fi
 
-#0 weather
-#1 temp_f
-#2 temp_c
-#3 chill_f
-#4 chill_c
-#5 humidity
-#6 time
-#7 credit
-#8 wind_direction
-#9 wind_mph
-#10 visibility_mi
-#11 location
-#12 latitude
-#13 longitude
-
 				# Largest heights (20+): the full Monty!
 				else
-# TODO: Formatting for large display
-					# Row 0 shows the weather status
-					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY Weather $COLOR_NORM│"
+						NEW_DRAW[1]="─────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY Weather $COLOR_NORM|"
+						NEW_DRAW[1]="---------+"
+					fi
+
+					# Row 2 shows the weather status and
+					# Rows 3-9 Show a large-size decorated temperature read-out
+					DECORATION_STRING=" "
+					DECORATION_COLOR="$COLOR_NORM"
+					DECORATION_COLOR_BG="$COLOR_BG_NORM"
+					# Fair
+					if [ "${DATA_ARRAY[0]}" == "Fair" ]; then
+						DECORATION_STRING="-$DISPLAY_ESCAPE_SPACE"
+						DECORATION_COLOR="$COLOR_YELO"
+						DECORATION_COLOR_BG="$COLOR_BG_YELO"
+					# A Few Clouds
+					elif [ "${DATA_ARRAY[0]}" == "A Few Clouds" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="~☁$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_YELO"
+						DECORATION_COLOR_BG="$COLOR_BG_YELO"
+					# Partly Cloudy
+					elif [ "${DATA_ARRAY[0]}" == "Partly Cloudy" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
+					# Mostly Cloudy
+					elif [ "${DATA_ARRAY[0]}" == "Mostly Cloudy" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_GRAY"
+						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
+					# Overcast
+					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁☁☁3~"
+						else
+							DECORATION_STRING="333~~"
+						fi
+						DECORATION_COLOR="$COLOR_GRAY"
+						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
+					# Rain
+					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
+						DECORATION_STRING='````'"'''\\\\\|"
+						DECORATION_COLOR="$COLOR_BLUE"
+						DECORATION_COLOR_BG="$COLOR_BG_BLUE"
+					# Light Freezing Rain Fog/Mist
+					elif [ "${DATA_ARRAY[0]}" ==\
+						"Light Freezing Rain Fog/Mist" ]; then
+# TODO
+						DECORATION_STRING='````'"'''\\\\\|"
+						DECORATION_COLOR="$COLOR_BLUE"
+					# Light Snow
+					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING=".❄\"$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING='.`"'"$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
+					# Snow
+					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="❄❄.\"$DISPLAY_ESCAPE_SPACE"
+						else
+							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
+						fi
+						DECORATION_COLOR="$COLOR_WHIT"
+						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
+					# ???
+					else
+						DECORATION_STRING="?$DISPLAY_ESCAPE_SPACE"
+						DECORATION_COLOR="$COLOR_NORM"
+						DECORATION_COLOR_BG="$COLOR_BG_NORM"
+					fi
+					LARGE_3=""
+					LARGE_4=""
+					LARGE_5=""
+					LARGE_6=""
+					LARGE_7=""
+					LARGE_8=""
+					LARGE_9=""
+					TEMP=${DATA_ARRAY[$((1 + WEATHER_TEMPERATURE_OFFSET\
+						))]}$WEATHER_DEGREE_SYMBOL$WEATHER_TEMPERATURE_UNITS
+					for (( i=0; i<${#TEMP}; i++ )); do
+						CHAR=${TEMP:$i:1}
+						LARGE_3=$LARGE_3$(randomize $DECORATION_STRING 6)
+						LARGE_4=$LARGE_4" "${LARGE_READ_OUT["$CHAR",0]}
+						LARGE_5=$LARGE_5" "${LARGE_READ_OUT["$CHAR",1]}
+						LARGE_6=$LARGE_6" "${LARGE_READ_OUT["$CHAR",2]}
+						LARGE_7=$LARGE_7" "${LARGE_READ_OUT["$CHAR",3]}
+						LARGE_8=$LARGE_8" "${LARGE_READ_OUT["$CHAR",4]}
+						LARGE_9=$LARGE_9$(randomize $DECORATION_STRING 6)
+					done
+					LARGE_3=$(center $(randomize $DECORATION_STRING 2)\
+$LARGE_3$(randomize $DECORATION_STRING 2) $CUR_COLS)
+					LARGE_4=$(center "$(randomize $DECORATION_STRING \
+1) $LARGE_4 $(randomize $DECORATION_STRING 1)" $CUR_COLS)
+					LARGE_5=$(center "$(randomize $DECORATION_STRING \
+1) $LARGE_5 $(randomize $DECORATION_STRING 1)" $CUR_COLS)
+					LARGE_6=$(center "$(randomize $DECORATION_STRING \
+1) $LARGE_6 $(randomize $DECORATION_STRING 1)" $CUR_COLS)
+					LARGE_7=$(center "$(randomize $DECORATION_STRING \
+1) $LARGE_7 $(randomize $DECORATION_STRING 1)" $CUR_COLS)
+					LARGE_8=$(center "$(randomize $DECORATION_STRING \
+1) $LARGE_8 $(randomize $DECORATION_STRING 1)" $CUR_COLS)
+					LARGE_9=$(center $(randomize $DECORATION_STRING 2)\
+$LARGE_9$(randomize $DECORATION_STRING 2) $CUR_COLS)
+					LARGE_3=${LARGE_3//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_4=${LARGE_4//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_5=${LARGE_5//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_6=${LARGE_6//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_7=${LARGE_7//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_8=${LARGE_8//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_9=${LARGE_9//"$DISPLAY_ESCAPE_SPACE"/ }
+					LARGE_4=${LARGE_4//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
+					LARGE_5=${LARGE_5//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
+					LARGE_6=${LARGE_6//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
+					LARGE_7=${LARGE_7//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
+					LARGE_8=${LARGE_8//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
+					NEW_DRAW[2]=$DECORATION_COLOR$(center "${DATA_ARRAY[0]}"\
+						$CUR_COLS)
+					NEW_DRAW[3]=$LARGE_3
+					NEW_DRAW[4]=$LARGE_4
+					NEW_DRAW[5]=$LARGE_5
+					NEW_DRAW[6]=$LARGE_6
+					NEW_DRAW[7]=$LARGE_7
+					NEW_DRAW[8]=$LARGE_8
+					NEW_DRAW[9]=$LARGE_9$COLOR_NORM
+
+					# Row 10 shows the effective temperature
+					if [ "${DATA_ARRAY[$((3+WEATHER_TEMPERATURE_OFFSET))]}" \
+						!= '-' ]; then
+						NEW_DRAW[10]=$(center\
+						"(feels like ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL)"\
+						$CUR_COLS)
+					else
+						NEW_DRAW[10]=""
+					fi
+
+					# Row 11 is blank
+
+					# Row 12 shows the humidity
+					NEW_DRAW[12]=$(center "Humidity: ${DATA_ARRAY[5]}%"\
+						$CUR_COLS)
+
+					# Row 13 shows the wind
+					if [ "${DATA_ARRAY[8]}" != '-' ]; then
+						if [ "${DATA_ARRAY[9]}" != '-' ]; then
+							NEW_DRAW[13]="Wind: ${DATA_ARRAY[8]} "\
+${DATA_ARRAY[9]}"mph"
+						else
+							NEW_DRAW[13]="Wind: ${DATA_ARRAY[8]}"
+						fi
+					else
+						if [ "${DATA_ARRAY[9]}" != '-' ]; then
+							NEW_DRAW[13]="Wind: ${DATA_ARRAY[9]}mph"
+						else
+							NEW_DRAW[13]="Wind: - unavailable -"
+						fi
+					fi
+					NEW_DRAW[13]=$(center "${NEW_DRAW[13]}" $CUR_COLS)
+
+					# Row 14 shows visibility
+					NEW_DRAW[14]=$(center "Visibility: ${DATA_ARRAY[10]}mi"\
+						$CUR_COLS)
+
+					# Rows 15 and 16 are blank
+
+					# Rows 17-(N-3) have a weather graphic
+					if [ "$CUR_ROWS" -gt "20" ]; then
+						for i in `seq 17 $((CUR_ROWS-4))`; do
+							LINE_ESCAPED=$(center "$(randomize "\
+$DECORATION_STRING$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE" $((CUR_COLS/2)))" $CUR_COLS)
+							NEW_DRAW[$i]=$DECORATION_COLOR\
+${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
+						done
+					fi
+
+					# Row N-2 shows the name of the observatory
+					NEW_DRAW[$((CUR_ROWS-2))]=$(center\
+						"From: ${DATA_ARRAY[11]}" $CUR_COLS)
+
+					# Row N-1 shows the update timestamp
+					NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
+						"${DATA_ARRAY[6]}" "+%I:%M%p") | ${DATA_ARRAY[7]}"\
+						$CUR_COLS)
 				fi
 			fi
 		fi
@@ -663,7 +987,12 @@ ${DATA_ARRAY[9]}"mph"
 
 	# Wait until the next refresh
 	STARTED=1
+	TMP="tmp"
 	read -t $REFRESH_RATE_SECONDS TMP
+	if [ "$TMP" == "r" ]; then STARTED=0; fi
+}
 
-# Return to start of section processing
+# Loop the section processing code ad infinitum (exit with CTRL+c)
+while true; do
+	render_sections
 done
