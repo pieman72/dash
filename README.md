@@ -6,7 +6,7 @@ individual panes in the terminal. The size and number of panes adjusts
 automatically to fit the content requested and the available terminal screen
 space. This works really well with terminal servers like
 [`tmux`](http://manpages.ubuntu.com/manpages/trusty/man1/tmux.1.html) and
-[`Screen`](http://manpages.ubuntu.com/manpages/trusty/en/man1/screen.1.html).
+[`Screen`](http://manpages.ubuntu.com/manpages/trusty/man1/screen.1.html).
 
 Compatibility
 ---
@@ -26,10 +26,12 @@ Installation
 This repository only has two code files. The executable `dash` script, and the
 configuration (`.ini`) file. After downloading these files, he script can be
 placed anywhere, but the config file should go in your home directory (much
-like a `.bashrc` file would). Next, read the next section on configuration (in
-case the default `dash` settings do not match your needs) then create a useful
-shortcut to the `dash` script:
+like a `.bashrc` file would). Next, read the following section on configuration
+(in case the default `dash` settings do not match your needs) then create a
+useful shortcut to the `dash` script:
+
     `$ alias bash-dash=/your/path/to/dash`
+
 In the example above, I created a shortcut called `bash-dash`, but you can call
 it whatever you like.
 
@@ -55,9 +57,9 @@ needs to be.
 *Display settings* These change the way `dash` renders content, based on your
 system's available settings:
 * `DISPLAY_ENCODING` (`UTF8`|`ASCII`) - If UTF-8 encoding is used, output will
-display fancy line-drawing and other characters (like &#2502;, &#2500;,
-&#253c;, and &#2744;), otherwise somewhat ugly ASCII substitutes will be used
-(like |, -, +, and &#2a).
+display fancy line-drawing and other characters (like &#x2502;, &#x2500;,
+&#x253c;, and &#x2744;), otherwise somewhat ugly ASCII substitutes will be used
+(like |, -, +, and &#x2a;).
 * `DISPLAY_COLOR_PALETTE` (`256`|`16`|`8`|`1`) - The number of terminal colors
 available for your display output. Most terminals support at least 16, or have
 an [option](https://push.cx/2008/256-color-xterms-in-ubuntu) to enable 256.
