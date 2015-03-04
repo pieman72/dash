@@ -70,6 +70,12 @@ separations
 intersections
 
 *Specific settings* These settings are specific to individual panes
+_*Email*_
+* `EMAIL_SECONDS_PER_POLL` ([int]) - The number of seconds data is considered
+to be "fresh". A larger number may mean fewer distractions :-)
+* `EMAIL_SOURCE` (`Gmail`) - Currently only Gmail is supported, but I intend to
+add other mail sources eventually. If you use Gmail, you will need to [enable
+access](#https://www.google.com/settings/security/lesssecureapps).
 _*Weather*_
 * `WEATHER_SECONDS_PER_POLL` ([int]) - The number of seconds data is considered
 to be "fresh". Weather.gov data updates only once an hour, and is subject to a

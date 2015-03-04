@@ -2,28 +2,31 @@
 
 # Dash basic configuration
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
-if [ -f "$DASH_ROOT/dash.ini" ]; then
+[ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="~/.dash.ini"
+if [ -f "$DASH_INI_PATH" ]; then
 	function load_config(){
-		RET="$(awk -F "\\\\s*=\\\\s*" "/^$1/"' {print $2}'\
-			"$DASH_ROOT/dash.ini")"
+		RET="$(awk -F "\\\\s*=\\\\s*" "/^$1=/"' {print $2}'\
+			"$DASH_INI_PATH")"
 		[ -n "$RET" ] && echo $RET || echo $2
 	}
 else
 	function load_config(){ echo $2; }
 fi
 DBG=$(load_config "DBG" '0')
-REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '5')
+REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '120')
 DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
 DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '16')
-DISPLAY_ESCAPE_SPACE=$(load_config "DISPLAY_ESCAPE_SPACE" '`')
+DISPLAY_ESCAPE_SPACE='`'
 if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '│')
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '─')
 	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '┼')
+	DISPLAY_SEPARATOR_CA=$(load_config "DISPLAY_SEPARATOR_CA" '┴')
 else
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '|')
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '-')
 	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '+')
+	DISPLAY_SEPARATOR_CA=$(load_config "DISPLAY_SEPARATOR_CA" '-')
 fi
 SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
 SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
@@ -34,8 +37,8 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
 	COLOR_ULINE="[4m"
-	COLOR_BOLD_OFF="[21m"
-	COLOR_ULINE_OFF="[24m"
+	COLOR_BOLD_OFF="[0m"
+	COLOR_ULINE_OFF="[0m"
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[38;5;118m"
 	COLOR_BLUE="[38;5;26m"
@@ -60,28 +63,54 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
 	COLOR_ULINE="[4m"
-	COLOR_BOLD_OFF="[21m"
-	COLOR_ULINE_OFF="[24m"
+	COLOR_BOLD_OFF="[0m"
+	COLOR_ULINE_OFF="[0m"
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[32m"
+	COLOR_BLUE="[1;34m"
+	COLOR_LBLU="[1;36m"
+	COLOR_RED="[31m"
+	COLOR_PURP="[35m"
+	COLOR_ORNG="[33m"
+	COLOR_YELO="[1;33m"
+	COLOR_GRAY="[37m"
+	COLOR_WHIT="[1;37m"
+	COLOR_BG_NORM="[0;49m"
+	COLOR_BG_GREN="[42m"
+	COLOR_BG_BLUE="[1;44m"
+	COLOR_BG_LBLU="[1;46m"
+	COLOR_BG_RED="[41m"
+	COLOR_BG_PURP="[45m"
+	COLOR_BG_ORNG="[43m"
+	COLOR_BG_YELO="[1;43m"
+	COLOR_BG_GRAY="[47m"
+	COLOR_BG_WHIT="[1;47m"
+elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
+	COLOR_RESET="[0;39;49m"
+	COLOR_BOLD=""
+	COLOR_ULINE=""
+	COLOR_BOLD_OFF=""
+	COLOR_ULINE_OFF=""
+	COLOR_NORM="[39m"
+	COLOR_GREN="[32m"
 	COLOR_BLUE="[34m"
-	COLOR_LBLU="[1;34m"
+	COLOR_LBLU="[34m"
 	COLOR_RED="[31m"
 	COLOR_PURP="[35m"
 	COLOR_ORNG="[33m"
 	COLOR_YELO="[33m"
 	COLOR_GRAY="[37m"
-	COLOR_WHIT="[1;37m"
-	COLOR_BG_NORM="[0;49m"
+	COLOR_WHIT="[37m"
+	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[42m"
 	COLOR_BG_BLUE="[44m"
-	COLOR_BG_LBLU="[1;44m"
+	COLOR_BG_LBLU="[44m"
 	COLOR_BG_RED="[41m"
 	COLOR_BG_PURP="[45m"
 	COLOR_BG_ORNG="[43m"
 	COLOR_BG_YELO="[43m"
 	COLOR_BG_GRAY="[47m"
-	COLOR_BG_WHIT="[1;47m"
+	COLOR_BG_WHIT="[47m"
 fi
 function msg(){
 	echo -e "$COLOR_RESET$COLOR_GRAY[Dash]$COLOR_NORM $1\n"
@@ -89,6 +118,7 @@ function msg(){
 function error(){
 	echo -e "$COLOR_RESET$COLOR_GRAY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n"\
 		>&2
+	read -p "$(echo -e '[Press ENTER to exit]\n\b')" TMP
 	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
 }
 function center(){
@@ -180,6 +210,8 @@ LARGE_READ_OUT["'",4]="     "
 # Support functions
 function GCD(){
 	if [ $# -ne 2 ]; then error "GCD() got incorrect arg count"; fi
+	if [ $1 -le 1 ]; then error "GCD() got too small argument"; fi
+	if [ $2 -le 1 ]; then error "GCD() got too small argument"; fi
 	NUM=$1
 	DEN=$2
 	REM=$((NUM%DEN))
@@ -220,20 +252,21 @@ if [ "$#" -lt 1 ]; then SHOW_HELP=1; fi
 SECT_LIST=''
 SHOW_CALENDAR=0
 SHOW_EMAIL=0
+SHOW_MATRIX=0
 SHOW_NEWS=0
+SHOW_SNAKE=0
 SHOW_WEATHER=0
 SHOW_STATS=0
-SHOW_SNAKE=0
-while getopt -Q -q -o 'HCENWYTSdz:' -n 'dash' -- $@; do
+while getopt -Q -q -o 'HCEMNSWYd:' -n 'dash' -- $@; do
 	case "$1" in
 		-H) SHOW_HELP=1;     SECT_LIST+='H'; shift ;;
 		-C) SHOW_CALENDAR=1; SECT_LIST+='C'; shift ;;
 		-E) SHOW_EMAIL=1;    SECT_LIST+='E'; shift ;;
+		-N) SHOW_MATRIX=1;   SECT_LIST+='M'; shift ;;
 		-N) SHOW_NEWS=1;     SECT_LIST+='N'; shift ;;
+		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
 		-W) SHOW_WEATHER=1;  SECT_LIST+='W'; shift ;;
 		-Y) SHOW_STATS=1;    SECT_LIST+='Y'; shift ;;
-		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
-		-z) ZIPCODE=$2; shift 2 ;;
 		-d) DBG=1; shift ;;
 		""|--) shift; break ;;
 		*) error "Unrecognized option $1" ;;
@@ -252,13 +285,15 @@ if [ "$SHOW_HELP" = 1 ]; then
 \t\tInclude a calendar readout in the output (you will be prompted for \
 credentials).\n\n\
 \t[1m-d[0m\n\
-\t\tPrint debugging information (overrides value in dash.ini). No sections \
+\t\tPrint debugging information (overrides value in your dashrc). No sections \
 will be shown.\n\n\
 \t[1m-E[0m\n\
 \t\tInclude an email digest in the output (you will be prompted for \
 credentials).\n\n\
 \t[1m-H[0m\n\
 \t\tOuput these instructions, and exit.\n\n\
+\t[1m-M[0m\n\
+\t\tInclude The Matrix!\n\n\
 \t[1m-N[0m\n\
 \t\tInclude a news digest in the output.\n\n\
 \t[1m-S[0m\n\
@@ -277,9 +312,19 @@ if [ "$SHOW_CALENDAR" = 1 ]; then
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
 	EMAIL_SECONDS_PER_POLL=$(load_config "EMAIL_SECONDS_PER_POLL" "300")
+	EMAIL_SOURCE=$(load_config "EMAIL_SOURCE" "Gmail")
+	read -p "Please enter the username for your $EMAIL_SOURCE account: "\
+		EMAIL_USER
+	read -p "Password: " -s EMAIL_PASS
+fi
+if [ "$SHOW_MATRIX" = 1 ]; then
+	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "0.5")
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
+fi
+if [ "$SHOW_SNAKE" = 1 ]; then
+	SNAKE_SECONDS_PER_POLL=$(load_config "SNAKE_SECONDS_PER_POLL" "10")
 fi
 if [ "$SHOW_WEATHER" = 1 ]; then
 	# Get INI values
@@ -301,9 +346,6 @@ fi
 if [ "$SHOW_STATS" = 1 ]; then
 	STATS_SECONDS_PER_POLL=$(load_config "STATS_SECONDS_PER_POLL" "60")
 fi
-if [ "$SHOW_SNAKE" = 1 ]; then
-	SNAKE_SECONDS_PER_POLL=$(load_config "SNAKE_SECONDS_PER_POLL" "10")
-fi
 
 # Save the old screen, block input echo, and set signal traps
 tput smcup
@@ -318,6 +360,7 @@ function render_sections(){
 	NEW_DATE=`date +%s`
 	COLS=`tput cols`
 	ROWS=`tput lines`
+	RENDER_SECT_LIST=$SECT_LIST
 
 	# Make sure there is enough space for anything
 	if [ "$COLS" -lt "$SECTION_MIN_COLS" ] ||\
@@ -329,17 +372,31 @@ function render_sections(){
 	fi
 
 	# Compute optimal size per section
-	TEMP_WIDTH=$(( (3*SECTION_MIN_COLS/2)*(ROWS/COLS) + SECTION_MIN_COLS ))
+	TEMP_WIDTH=SECTION_MIN_COLS
 	while [ "$((SECTS * (TEMP_WIDTH+1) - 1))" -lt "$COLS" ]; do
 		((TEMP_WIDTH+=10))
 	done
 	TEMP_WIDTH=$(( TEMP_WIDTH>COLS ? COLS : TEMP_WIDTH ))
 	SECTS_X=$(( (COLS+1)/(TEMP_WIDTH+1) ))
-	SECTS_Y=$((SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0)))
-	BASE_COLS=$((COLS/SECTS_X))
-	BASE_ROWS=$((ROWS/SECTS_Y))
-	EXTRA_X=$((COLS-SECTS_X*BASE_COLS))
-	EXTRA_Y=$((ROWS-SECTS_Y*BASE_ROWS))
+	SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
+	while [ "$(( SECTS_Y*COLS*5 ))" -lt "$(( SECTS_X*ROWS*12 ))" ]; do
+		((--SECTS_X))
+		SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
+	done
+	BLANK_SECTS=$(( SECTS_X*SECTS_Y - SECTS ))
+	if [ "$BLANK_SECTS" -gt "0" ]; then
+		SECTS=$(( SECTS + BLANK_SECTS ))
+		if [ "$BLANK_SECTS" -eq "1" ]; then
+			RENDER_SECT_LIST=$(echo $RENDER_SECT_LIST; echo "_")
+		else
+			RENDER_SECT_LIST=$(echo $RENDER_SECT_LIST; echo "_";
+				printf "\n_%.0s" $(seq 2 $BLANK_SECTS))
+		fi
+	fi
+	BASE_COLS=$(( COLS/SECTS_X ))
+	BASE_ROWS=$(( ROWS/SECTS_Y ))
+	EXTRA_X=$(( COLS-SECTS_X*BASE_COLS ))
+	EXTRA_Y=$(( ROWS-SECTS_Y*BASE_ROWS ))
 	SECTS_PROCESSED=0
 	ROWS_PROCESSED=0
 	COLS_PROCESSED=0
@@ -362,7 +419,8 @@ function render_sections(){
 	fi
 
 	# Inner loop to handle each particular section
-	for CUR_SECT in $SECT_LIST; do
+	PREV_SECT=""
+	for CUR_SECT in $RENDER_SECT_LIST; do
 		# Figure out the specific size of this section
 		CUR_X=$((SECTS_PROCESSED%SECTS_X))
 		CUR_Y=$((SECTS_PROCESSED/SECTS_X))
@@ -388,18 +446,22 @@ function render_sections(){
 		NEW_DRAW=()
 
 		# Get seconds per poll for this section
-		if [ "$CUR_SECT" == 'C' ]; then
+		if [ "$CUR_SECT" == '_' ]; then
+			SECONDS_PER_POLL=100000
+		elif [ "$CUR_SECT" == 'C' ]; then
 			SECONDS_PER_POLL=$CALENDAR_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'E' ]; then
 			SECONDS_PER_POLL=$EMAIL_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'M' ]; then
+			SECONDS_PER_POLL=$MATRIX_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'N' ]; then
 			SECONDS_PER_POLL=$NEWS_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'S' ]; then
+			SECONDS_PER_POLL=$SNAKE_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'W' ]; then
 			SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'Y' ]; then
 			SECONDS_PER_POLL=$STATS_SECONDS_PER_POLL
-		elif [ "$CUR_SECT" == 'S' ]; then
-			SECONDS_PER_POLL=$SNAKE_SECONDS_PER_POLL
 		fi
 
 		# Check any previous data
@@ -420,6 +482,14 @@ function render_sections(){
 			fi
 		fi
 
+		# --- Blank -----------------------------------------
+		if [ "$CUR_SECT" == '_' ]; then
+			# Create an empty array of rows
+			NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+				" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+			for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+		fi
+
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			echo -n ""
@@ -427,12 +497,147 @@ function render_sections(){
 
 		# --- Email -----------------------------------------
 		if [ "$CUR_SECT" == 'E' ]; then
-#while sleep 30; do tput sc;tput cup 0 $(($(tput cols)-15));echo -n " New Emails: $(curl -u username:password --silent https://mail.google.com/mail/feed/atom | grep 'fullcount' | grep -o '[0-9]\+')";tput rc; done &
+			# If the data is old, download new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				if [ "$EMAIL_SOURCE" == "Gmail" ]; then
+					URL="https://mail.google.com/mail/feed/atom"
+					FEED=$(curl -u "$EMAIL_USER:$EMAIL_PASS" --silent "$URL")
+					MAILCOUNT=$(grep -oPm1 "(?<=<fullcount>)[^<]*"\
+							<<< "$FEED")
+					NEW_DATA=$MAILCOUNT
+					OLDIFS=$IFS
+					IFS=$'\n'
+					FEED=($(grep -oPm1 "<entry>.*?</entry>" <<< "$FEED"))
+					for i in `seq 0 $((MAILCOUNT - 1))`; do
+						ENTRY=${FEED[$i]}
+						D_senderName=$(grep -oPm1 "(?<=<name>)[^<]*"\
+							<<< "$ENTRY")
+						D_senderEmail=$(grep -oPm1 "(?<=<email>)[^<]*"\
+							<<< "$ENTRY")
+						D_subject=$(grep -oPm1 "(?<=<title>)[^<]*"\
+							<<< "$ENTRY")
+						D_date=$(grep -oPm1 "(?<=<modified>)[^<]*"\
+							<<< "$ENTRY")
+						D_content=$(grep -oPm1 "(?<=<summary>)[^<]*"\
+							<<< "$ENTRY")
+						NEW_DATA=$NEW_DATA$(echo -e "\u07")
+						NEW_DATA=$NEW_DATA$D_senderName$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_senderEmail$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_subject$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_content
+						FIRST_ENTRY=0;
+					done
+					IFS=$OLDIFS
+					DATA=$NEW_DATA
+				else
+					DATA=$OLD_DATA
+				fi
+			else
+				DATA=$OLD_DATA
+			fi
+
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Expand the data into an array, handling string escapes
+				OLDIFS=$IFS
+				IFS=$(echo -e "\u07")
+				DATA_ARRAY=($DATA)
+				IFS=$OLDIFS
+
+				# Loop through each email message
+				for i in `seq 0 ${DATA_ARRAY[0]}`; do
+					# Get the email message pieces
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u06")
+					DATA_PIECES=(${DATA_ARRAY[$i]})
+					IFS=$OLDIFS
+
+					# Smallest heights (3-7): just show most relevant info
+					if [ "$CUR_ROWS" -lt 8 ]; then
+						# For the heading
+						if [ "$i" == "0" ]; then
+							# Row 0 shows the message count
+							NEW_DRAW[0]="${DATA_ARRAY[$i]} New Messages"
+						# For each message
+						else
+							# Row 1... Shows sender name and subject
+							NEW_DRAW[$i]="$COLOR_BOLD${DATA_PIECES[0]}\
+$COLOR_BOLD_OFF - ${DATA_PIECES[3]}"
+						fi
+
+					# Medium heights (8-19): add some formatting
+					elif [ "$CUR_ROWS" -lt 20 ]; then
+						# For the heading
+						if [ "$i" == "0" ]; then
+							# Row 0 has a heading
+							NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Email\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+							# Row 1 shows the message count
+							NEW_DRAW[1]="${DATA_ARRAY[$i]} New Messages"
+						# For each message
+						else
+							# Row 2... shows the sender's name and date
+							NEW_DRAW[$((i*3))]="From: $COLOR_BOLD\
+${DATA_PIECES[0]}$COLOR_BOLD_OFF  -  ${DATA_PIECES[2]}"
+
+							# Row 3... shows the subject and message content
+							NEW_DRAW[$((i*3+1))]="$COLOR_ULINE\
+${DATA_PIECES[3]}$COLOR_ULINE_OFF - ${DATA_PIECES[4]}"
+						fi
+
+
+					# Largest heights (20+): the full Monty!
+					else
+						# For the heading
+						if [ "$i" == "0" ]; then
+							# Rows 0-1 have a heading
+							if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+								NEW_DRAW[0]="$COLOR_GRAY Email $COLOR_NORM│"
+								NEW_DRAW[1]="───────┘"
+							else
+								NEW_DRAW[0]="$COLOR_GRAY Email $COLOR_NORM|"
+								NEW_DRAW[1]="-------+"
+							fi
+
+							# Row 2 shows the message count
+							NEW_DRAW[2]="${DATA_ARRAY[$i]} New Messages"
+						# For each message
+						else
+							# Row 3... shows the sender's info and date
+							NEW_DRAW[$((i*4))]="From: $COLOR_BOLD\
+${DATA_PIECES[0]}$COLOR_BOLD_OFF  <${DATA_PIECES[1]}>  -  ${DATA_PIECES[2]}"
+
+							# Row 4... shows the subject
+							NEW_DRAW[$((i*4+1))]="Subject: $COLOR_ULINE\
+${DATA_PIECES[3]}$COLOR_ULINE_OFF"
+
+							# Row 5... shows the message content
+							NEW_DRAW[$((i*4+2))]="${DATA_PIECES[4]}"
+						fi
+					fi
+				done
+			fi
+		fi
+
+		# --- Matrix ----------------------------------------
+		if [ "$CUR_SECT" == 'M' ]; then
 			echo -n ""
 		fi
 
 		# --- News ------------------------------------------
 		if [ "$CUR_SECT" == 'N' ]; then
+			echo -n ""
+		fi
+
+		# --- Snake -----------------------------------------
+		if [ "$CUR_SECT" == 'S' ]; then
 			echo -n ""
 		fi
 
@@ -474,14 +679,14 @@ function render_sections(){
 				if [ -z "$D_chil_c" ]; then D_chil_c='-'; fi
 				if [ -z "$D_w_dir" ]; then D_w_dir='-'; fi
 				if [ -z "$D_w_mph" ]; then D_w_mph='-'; fi
-				NEW_DATA=$(echo "$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;\
-$D_chil_c;$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon")
+				NEW_DATA="$D_weather;$D_temp_f;$D_temp_c;$D_chil_f;$D_chil_c;\
+$D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon\n"
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
 			fi
 
-			# If the drawing is old, redo it. In either case, store it
+			# If the drawing is old, redo it
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array, handling string escapes
 				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
@@ -574,6 +779,14 @@ $DISPLAY_ESCAPE_SPACE"
 							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
 						fi
 						DECORATION_COLOR="$COLOR_GRAY"
+					# Overcast with Haze
+					elif [ "${DATA_ARRAY[0]}" == "Overcast with Haze" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁☁ᢆᢆ░3~"
+						else
+							DECORATION_STRING="333~~"
+						fi
+						DECORATION_COLOR="$COLOR_GRAY"
 					# Overcast
 					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -608,7 +821,7 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 					# Snow
 					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="❄❄.\"$DISPLAY_ESCAPE_SPACE"
+							DECORATION_STRING="❄✲❄❅❆❈❉.\"$DISPLAY_ESCAPE_SPACE"
 						else
 							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
 						fi
@@ -736,6 +949,15 @@ $DISPLAY_ESCAPE_SPACE"
 						fi
 						DECORATION_COLOR="$COLOR_GRAY"
 						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
+					# Overcast with Haze
+					elif [ "${DATA_ARRAY[0]}" == "Overcast with Haze" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁☁ᢆᢆ░3~"
+						else
+							DECORATION_STRING="333~~"
+						fi
+						DECORATION_COLOR="$COLOR_GRAY"
+						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
 					# Overcast
 					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -774,7 +996,7 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 					# Snow
 					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="❄❄.\"$DISPLAY_ESCAPE_SPACE"
+							DECORATION_STRING="❄✲❄❅❆❈❉.\"$DISPLAY_ESCAPE_SPACE"
 						else
 							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
 						fi
@@ -832,14 +1054,14 @@ $LARGE_9$(randomize $DECORATION_STRING 2) $CUR_COLS)
 					LARGE_7=${LARGE_7//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
 					LARGE_8=${LARGE_8//"X"/$DECORATION_COLOR_BG $COLOR_BG_NORM}
 					NEW_DRAW[2]=$DECORATION_COLOR$(center "${DATA_ARRAY[0]}"\
-						$CUR_COLS)
-					NEW_DRAW[3]=$LARGE_3
-					NEW_DRAW[4]=$LARGE_4
-					NEW_DRAW[5]=$LARGE_5
-					NEW_DRAW[6]=$LARGE_6
-					NEW_DRAW[7]=$LARGE_7
-					NEW_DRAW[8]=$LARGE_8
-					NEW_DRAW[9]=$LARGE_9$COLOR_NORM
+						$CUR_COLS)$COLOR_NORM
+					NEW_DRAW[3]=$DECORATION_COLOR$LARGE_3$COLOR_NORM
+					NEW_DRAW[4]=$DECORATION_COLOR$LARGE_4$COLOR_NORM
+					NEW_DRAW[5]=$DECORATION_COLOR$LARGE_5$COLOR_NORM
+					NEW_DRAW[6]=$DECORATION_COLOR$LARGE_6$COLOR_NORM
+					NEW_DRAW[7]=$DECORATION_COLOR$LARGE_7$COLOR_NORM
+					NEW_DRAW[8]=$DECORATION_COLOR$LARGE_8$COLOR_NORM
+					NEW_DRAW[9]=$DECORATION_COLOR$LARGE_9$COLOR_NORM
 
 					# Row 10 shows the effective temperature
 					if [ "${DATA_ARRAY[$((3+WEATHER_TEMPERATURE_OFFSET))]}" \
@@ -903,14 +1125,46 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 			fi
 		fi
 
-		# --- Stats -----------------------------------------
+		# --- System Stats ----------------------------------
 		if [ "$CUR_SECT" == 'Y' ]; then
-			echo -n ""
-		fi
+			# If the data is old, download new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				NEW_DATA="---"
+				DATA=$NEW_DATA
+			else
+				DATA=$OLD_DATA
+			fi
 
-		# --- Snake -----------------------------------------
-		if [ "$CUR_SECT" == 'S' ]; then
-			echo -n ""
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Expand the data into an array, handling string escapes
+				# Smallest heights (3-7): just show most relevant info
+				if [ "$CUR_ROWS" -lt 8 ]; then
+					NEW_DRAW[0]=" "
+
+				# Medium heights (8-19): add some formatting
+				elif [ "$CUR_ROWS" -lt 20 ]; then
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+				# Largest heights (20+): the full Monty!
+				else
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY System Stats $COLOR_NORM│"
+						NEW_DRAW[1]="──────────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY System Stats $COLOR_NORM|"
+						NEW_DRAW[1]="--------------+"
+					fi
+				fi
+			fi
 		fi
 
 		# Get the correct data and date
@@ -948,7 +1202,11 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 				if [ "$BORDER_TOP" = 1 ]; then
 					tput cup $ROWS_PROCESSED $COLS_PROCESSED
 					if [ "$CUR_X" -gt 0 ]; then
-						echo -n $DISPLAY_SEPARATOR_C;
+						if [[ "$PREV_SECT" != "_" ]]; then
+							echo -n $DISPLAY_SEPARATOR_C;
+						else
+							echo -n $DISPLAY_SEPARATOR_CA;
+						fi
 					fi
 					if [ "$DISPLAY_SEPARATOR_H" == "-" ]; then
 						echo "$(head -c "$CUR_COLS" < "/dev/zero"|tr '\0' '-')"
@@ -966,7 +1224,9 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 					# Reset the cursor and print content
 					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
 					if [ "$BORDER_LEFT" = 1 ]; then
-						echo -n "$DISPLAY_SEPARATOR_V";
+						if [[ "$PREV_SECT" != "_" ]]; then
+							echo -n "$DISPLAY_SEPARATOR_V";
+						fi
 					fi
 					echo -n "${DRAW[$i]}"
 				done
@@ -981,6 +1241,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 			COLS_PROCESSED=$((COLS_PROCESSED+CUR_COLS+BORDER_LEFT))
 		fi
 		((++SECTS_PROCESSED))
+		PREV_SECT=$CUR_SECT
 	done
 
 	# Wait until the next refresh
