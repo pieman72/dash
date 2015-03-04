@@ -252,17 +252,15 @@ if [ "$#" -lt 1 ]; then SHOW_HELP=1; fi
 SECT_LIST=''
 SHOW_CALENDAR=0
 SHOW_EMAIL=0
-SHOW_MATRIX=0
 SHOW_NEWS=0
 SHOW_SNAKE=0
 SHOW_WEATHER=0
 SHOW_STATS=0
-while getopt -Q -q -o 'HCEMNSWYd:' -n 'dash' -- $@; do
+while getopt -Q -q -o 'HCENSWYd:' -n 'dash' -- $@; do
 	case "$1" in
 		-H) SHOW_HELP=1;     SECT_LIST+='H'; shift ;;
 		-C) SHOW_CALENDAR=1; SECT_LIST+='C'; shift ;;
 		-E) SHOW_EMAIL=1;    SECT_LIST+='E'; shift ;;
-		-N) SHOW_MATRIX=1;   SECT_LIST+='M'; shift ;;
 		-N) SHOW_NEWS=1;     SECT_LIST+='N'; shift ;;
 		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
 		-W) SHOW_WEATHER=1;  SECT_LIST+='W'; shift ;;
@@ -285,15 +283,13 @@ if [ "$SHOW_HELP" = 1 ]; then
 \t\tInclude a calendar readout in the output (you will be prompted for \
 credentials).\n\n\
 \t[1m-d[0m\n\
-\t\tPrint debugging information (overrides value in your dashrc). No sections \
-will be shown.\n\n\
+\t\tPrint debugging information (overrides value in your .dash.ini). No \
+sections will be shown.\n\n\
 \t[1m-E[0m\n\
 \t\tInclude an email digest in the output (you will be prompted for \
 credentials).\n\n\
 \t[1m-H[0m\n\
 \t\tOuput these instructions, and exit.\n\n\
-\t[1m-M[0m\n\
-\t\tInclude The Matrix!\n\n\
 \t[1m-N[0m\n\
 \t\tInclude a news digest in the output.\n\n\
 \t[1m-S[0m\n\
@@ -316,9 +312,6 @@ if [ "$SHOW_EMAIL" = 1 ]; then
 	read -p "Please enter the username for your $EMAIL_SOURCE account: "\
 		EMAIL_USER
 	read -p "Password: " -s EMAIL_PASS
-fi
-if [ "$SHOW_MATRIX" = 1 ]; then
-	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "0.5")
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
@@ -452,8 +445,6 @@ function render_sections(){
 			SECONDS_PER_POLL=$CALENDAR_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'E' ]; then
 			SECONDS_PER_POLL=$EMAIL_SECONDS_PER_POLL
-		elif [ "$CUR_SECT" == 'M' ]; then
-			SECONDS_PER_POLL=$MATRIX_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'N' ]; then
 			SECONDS_PER_POLL=$NEWS_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'S' ]; then
@@ -624,11 +615,6 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF"
 					fi
 				done
 			fi
-		fi
-
-		# --- Matrix ----------------------------------------
-		if [ "$CUR_SECT" == 'M' ]; then
-			echo -n ""
 		fi
 
 		# --- News ------------------------------------------
