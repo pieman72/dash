@@ -307,11 +307,14 @@ if [ "$SHOW_CALENDAR" = 1 ]; then
 	CALENDAR_SECONDS_PER_POLL=$(load_config "CALENDAR_SECONDS_PER_POLL" "600")
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
+	# Get INI values
 	EMAIL_SECONDS_PER_POLL=$(load_config "EMAIL_SECONDS_PER_POLL" "300")
 	EMAIL_SOURCE=$(load_config "EMAIL_SOURCE" "Gmail")
+	# Prompt for credentials
 	read -p "Please enter the username for your $EMAIL_SOURCE account: "\
 		EMAIL_USER
 	read -p "Password: " -s EMAIL_PASS
+	echo ""
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
@@ -507,8 +510,8 @@ function render_sections(){
 							<<< "$ENTRY")
 						D_subject=$(grep -oPm1 "(?<=<title>)[^<]*"\
 							<<< "$ENTRY")
-						D_date=$(grep -oPm1 "(?<=<modified>)[^<]*"\
-							<<< "$ENTRY")
+						D_date=$(date -d "$(grep -oPm1 "(?<=<modified>)[^<]*"\
+							<<< "$ENTRY")" +%s)
 						D_content=$(grep -oPm1 "(?<=<summary>)[^<]*"\
 							<<< "$ENTRY")
 						NEW_DATA=$NEW_DATA$(echo -e "\u07")
@@ -549,15 +552,39 @@ function render_sections(){
 					DATA_PIECES=(${DATA_ARRAY[$i]})
 					IFS=$OLDIFS
 
+					# Get the date
+					if [ "$i" -gt "0" ]; then
+						MESSAGE_AGE=$(( $(date '+%s') - ${DATA_PIECES[2]} ))
+						if [ "$MESSAGE_AGE" -gt 31536000 ]; then
+							DATE_STRING=$(date -d "@${DATA_PIECES[2]}" '+%F')
+						elif [ "$MESSAGE_AGE" -gt 5184000 ]; then
+							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
+								'+%_m/%d')
+						elif [ "${DATA_PIECES[2]}" -lt\
+								"$(date -d 'today 00:00:00' '+%s')" ]; then
+							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
+								'+%b %e')
+						elif [ "$MESSAGE_AGE" -gt 300 ]; then
+							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
+								'+%l:%M%P')
+						elif [ "$MESSAGE_AGE" -gt 60 ]; then
+							DATE_STRING="$(( MESSAGE_AGE/60 )) minutes ago"
+						else
+							DATE_STRING="just now"
+						fi
+					fi
+
 					# Smallest heights (3-7): just show most relevant info
 					if [ "$CUR_ROWS" -lt 8 ]; then
 						# For the heading
 						if [ "$i" == "0" ]; then
 							# Row 0 shows the message count
+#TODO: style this and handle singular/plural
 							NEW_DRAW[0]="${DATA_ARRAY[$i]} New Messages"
 						# For each message
 						else
 							# Row 1... Shows sender name and subject
+#TODO: truncate long lines
 							NEW_DRAW[$i]="$COLOR_BOLD${DATA_PIECES[0]}\
 $COLOR_BOLD_OFF - ${DATA_PIECES[3]}"
 						fi
@@ -571,18 +598,20 @@ $COLOR_BOLD_OFF - ${DATA_PIECES[3]}"
 $COLOR_ULINE_OFF]$COLOR_NORM"
 
 							# Row 1 shows the message count
+#TODO: style this and handle singular/plural
 							NEW_DRAW[1]="${DATA_ARRAY[$i]} New Messages"
 						# For each message
 						else
 							# Row 2... shows the sender's name and date
+#TODO: fix width and have date column (max width=14) at far right
 							NEW_DRAW[$((i*3))]="From: $COLOR_BOLD\
-${DATA_PIECES[0]}$COLOR_BOLD_OFF  -  ${DATA_PIECES[2]}"
+${DATA_PIECES[0]}$COLOR_BOLD_OFF  -  $(date -d "$DATE_STRING" "+%D %r")"
 
 							# Row 3... shows the subject and message content
+#TODO: truncate long lines
 							NEW_DRAW[$((i*3+1))]="$COLOR_ULINE\
 ${DATA_PIECES[3]}$COLOR_ULINE_OFF - ${DATA_PIECES[4]}"
 						fi
-
 
 					# Largest heights (20+): the full Monty!
 					else
@@ -598,17 +627,21 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF - ${DATA_PIECES[4]}"
 							fi
 
 							# Row 2 shows the message count
+#TODO: style this and handle singular/plural
 							NEW_DRAW[2]="${DATA_ARRAY[$i]} New Messages"
 						# For each message
 						else
 							# Row 3... shows the sender's info and date
+#TODO: fix width and have date column (max width=14) at far right
 							NEW_DRAW[$((i*4))]="From: $COLOR_BOLD\
-${DATA_PIECES[0]}$COLOR_BOLD_OFF  <${DATA_PIECES[1]}>  -  ${DATA_PIECES[2]}"
+${DATA_PIECES[0]}$COLOR_BOLD_OFF  <${DATA_PIECES[1]}>  -  $DATE_STRING"
 
 							# Row 4... shows the subject
+#TODO: truncate long lines, maybe add decorator before/after?
 							NEW_DRAW[$((i*4+1))]="Subject: $COLOR_ULINE\
 ${DATA_PIECES[3]}$COLOR_ULINE_OFF"
 
+#TODO: truncate long lines, maybe show more than one?
 							# Row 5... shows the message content
 							NEW_DRAW[$((i*4+2))]="${DATA_PIECES[4]}"
 						fi
