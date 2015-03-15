@@ -125,6 +125,22 @@ function center(){
 	LEN=$(wc -m <<< "$1")
 	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
 }
+function truncate(){
+	LEN=$(( $(wc -m <<< "$1") - 1 ))
+	if [ "$LEN" -gt "$2" ];then
+		echo -n "${1:0:$(( $2 - 3))}..."
+	else
+		echo -n "$1"
+	fi
+}
+function extend(){
+	LEN=$(( $(wc -m <<< "$1") - 1 ))
+	if [ "$LEN" -lt "$2" ];then
+		printf "%s%*s" "$1" $(($2 - $LEN)) " "
+	else
+		echo -n "$1"
+	fi
+}
 declare -A LARGE_READ_OUT
 LARGE_READ_OUT["0",0]=" XXX "
 LARGE_READ_OUT["0",1]="X   X"
@@ -375,7 +391,8 @@ function render_sections(){
 	TEMP_WIDTH=$(( TEMP_WIDTH>COLS ? COLS : TEMP_WIDTH ))
 	SECTS_X=$(( (COLS+1)/(TEMP_WIDTH+1) ))
 	SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
-	while [ "$(( SECTS_Y*COLS*5 ))" -lt "$(( SECTS_X*ROWS*12 ))" ]; do
+	while [ "$(( SECTS_Y*COLS*5 ))" -lt "$(( SECTS_X*ROWS*12 ))" ]\
+			&& [ "$SECTS_X" -gt 1 ]; do
 		((--SECTS_X))
 		SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
 	done
@@ -505,9 +522,9 @@ function render_sections(){
 					for i in `seq 0 $((MAILCOUNT - 1))`; do
 						ENTRY=${FEED[$i]}
 						D_senderName=$(grep -oPm1 "(?<=<name>)[^<]*"\
-							<<< "$ENTRY")
+							<<< "$ENTRY" | tail -n1)
 						D_senderEmail=$(grep -oPm1 "(?<=<email>)[^<]*"\
-							<<< "$ENTRY")
+							<<< "$ENTRY" | tail -n1)
 						D_subject=$(grep -oPm1 "(?<=<title>)[^<]*"\
 							<<< "$ENTRY")
 						D_date=$(date -d "$(grep -oPm1 "(?<=<modified>)[^<]*"\
@@ -553,7 +570,7 @@ function render_sections(){
 					IFS=$OLDIFS
 
 					# Get the date
-					if [ "$i" -gt "0" ]; then
+					if [ "$i" -gt 0 ]; then
 						MESSAGE_AGE=$(( $(date '+%s') - ${DATA_PIECES[2]} ))
 						if [ "$MESSAGE_AGE" -gt 31536000 ]; then
 							DATE_STRING=$(date -d "@${DATA_PIECES[2]}" '+%F')
@@ -577,22 +594,28 @@ function render_sections(){
 					# Smallest heights (3-7): just show most relevant info
 					if [ "$CUR_ROWS" -lt 8 ]; then
 						# For the heading
-						if [ "$i" == "0" ]; then
+						if [ "$i" == 0 ]; then
 							# Row 0 shows the message count
-#TODO: style this and handle singular/plural
 							NEW_DRAW[0]="${DATA_ARRAY[$i]} New Messages"
 						# For each message
 						else
 							# Row 1... Shows sender name and subject
-#TODO: truncate long lines
-							NEW_DRAW[$i]="$COLOR_BOLD${DATA_PIECES[0]}\
-$COLOR_BOLD_OFF - ${DATA_PIECES[3]}"
+							LEN_SENDER=${#DATA_PIECES[0]}
+							if [ "$LEN_SENDER" -gt 15 ]; then
+								LEN_SENDER=$(( ( (35*CUR_COLS)/100 ) > 15 ?\
+									( (35*CUR_COLS)/100 ) : 15 ))
+							fi
+							NEW_DRAW[$i]="$COLOR_BOLD$(truncate\
+								"${DATA_PIECES[0]}"\
+								"$LEN_SENDER")$COLOR_BOLD_OFF - $(truncate\
+								"${DATA_PIECES[3]}"\
+								"$(( CUR_COLS - (LEN_SENDER+3) ))")"
 						fi
 
 					# Medium heights (8-19): add some formatting
 					elif [ "$CUR_ROWS" -lt 20 ]; then
 						# For the heading
-						if [ "$i" == "0" ]; then
+						if [ "$i" == 0 ]; then
 							# Row 0 has a heading
 							NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Email\
 $COLOR_ULINE_OFF]$COLOR_NORM"
@@ -603,14 +626,28 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 						# For each message
 						else
 							# Row 2... shows the sender's name and date
-#TODO: fix width and have date column (max width=14) at far right
-							NEW_DRAW[$((i*3))]="From: $COLOR_BOLD\
-${DATA_PIECES[0]}$COLOR_BOLD_OFF  -  $(date -d "$DATE_STRING" "+%D %r")"
+							NEW_DRAW[$(( i*3 ))]="From: $COLOR_BOLD$(extend\
+								"$(truncate\
+									"${DATA_PIECES[0]}"\
+									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
+								)"\
+								"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
+							)$COLOR_BOLD_OFF $DATE_STRING"
 
 							# Row 3... shows the subject and message content
-#TODO: truncate long lines
-							NEW_DRAW[$((i*3+1))]="$COLOR_ULINE\
-${DATA_PIECES[3]}$COLOR_ULINE_OFF - ${DATA_PIECES[4]}"
+							LEN_SUBJECT=${#DATA_PIECES[3]}
+							if [ "$LEN_SUBJECT" -gt "$((CUR_COLS - 6))" ]; then
+								NEW_DRAW[$((i*3+1))]="$COLOR_ULINE$(truncate\
+									"${DATA_PIECES[3]}"\
+									$CUR_COLS\
+								)$COLOR_ULINE_OFF"
+							else
+								NEW_DRAW[$((i*3+1))]="$COLOR_ULINE\
+${DATA_PIECES[3]}$COLOR_ULINE_OFF - $(truncate\
+									"${DATA_PIECES[4]}"\
+									$(( CUR_COLS - (3+LEN_SUBJECT) ))
+								)"
+							fi
 						fi
 
 					# Largest heights (20+): the full Monty!
