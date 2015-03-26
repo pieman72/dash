@@ -163,7 +163,7 @@ function handleExit(){
 
 # Output formatting
 function center(){
-	LEN=$(wc -m <<< "$1")
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
 	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
 }
 function truncate(){
@@ -636,18 +636,21 @@ function render_sections(){
 						fi
 					fi
 
-					# Smallest heights (3-7): just show most relevant info
-					if [ "$CUR_ROWS" -lt 8 ]; then
+					# Smallest heights (3-10): just show most relevant info
+					if [ "$CUR_ROWS" -lt 11 ]; then
+						# Break after too many rows of messages
+						if [ "$(( i*1 + 2))" -ge "$CUR_ROWS" ]; then
+							break
 						# For the heading
-						if [ "$i" == 0 ]; then
+						elif [ "$i" == 0 ]; then
 							# Row 0 shows the message count
-							NEW_DRAW[0]="No New Messages"
+							NEW_DRAW[0]=$(center "No New Messages" $CUR_COLS)
 							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
-								NEW_DRAW[0]=$COLOR_GREN"${DATA_ARRAY[$i]}\
-$COLOR_NORM New Messages"
+								NEW_DRAW[0]=$(center $COLOR_GREN\
+"${DATA_ARRAY[$i]}$COLOR_NORM New Messages" $CUR_COLS)
 							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
-								NEW_DRAW[0]=$COLOR_GREN"1\
-$COLOR_NORM New Message"
+								NEW_DRAW[0]=$(center $COLOR_GREN\
+"1$COLOR_NORM New Message" $CUR_COLS)
 							fi
 						# For each message
 						else
@@ -670,22 +673,25 @@ $COLOR_NORM New Message"
 							) $DATE_COLOR$DATE_STRING$COLOR_NORM"
 						fi
 
-					# Medium heights (8-19): add some formatting
-					elif [ "$CUR_ROWS" -lt 20 ]; then
+					# Medium heights (11-25): add some formatting
+					elif [ "$CUR_ROWS" -lt 26 ]; then
+						# Break after too many rows of messages
+						if [ "$(( i*3 + 4))" -ge "$CUR_ROWS" ]; then
+							break
 						# For the heading
-						if [ "$i" == 0 ]; then
+						elif [ "$i" == 0 ]; then
 							# Row 0 has a heading
 							NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Email\
 $COLOR_ULINE_OFF]$COLOR_NORM"
 
 							# Row 1 shows the message count
-							NEW_DRAW[1]="No New Messages"
+							NEW_DRAW[1]=$(center "No New Messages" $CUR_COLS)
 							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
-								NEW_DRAW[1]=$COLOR_GREN"${DATA_ARRAY[$i]}\
-$COLOR_NORM New Messages"
+								NEW_DRAW[1]=$(center $COLOR_GREN\
+"${DATA_ARRAY[$i]}$COLOR_NORM New Messages" $CUR_COLS)
 							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
-								NEW_DRAW[1]=$COLOR_GREN"1\
-$COLOR_NORM New Message"
+								NEW_DRAW[1]=$(center $COLOR_GREN\
+"1$COLOR_NORM New Message" $CUR_COLS)
 							fi
 						# For each message
 						else
@@ -715,10 +721,13 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF - $(truncate\
 							fi
 						fi
 
-					# Largest heights (20+): the full Monty!
+					# Largest heights (25+): the full Monty!
 					else
+						# Break after too many rows of messages
+						if [ "$(( i*4 + 5))" -ge "$CUR_ROWS" ]; then
+							break
 						# For the heading
-						if [ "$i" == "0" ]; then
+						elif [ "$i" == "0" ]; then
 							# Rows 0-1 have a heading
 							if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 								NEW_DRAW[0]="$COLOR_GRAY Email $COLOR_NORM│"
@@ -729,13 +738,13 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF - $(truncate\
 							fi
 
 							# Row 2 shows the message count
-							NEW_DRAW[2]="No New Messages"
+							NEW_DRAW[2]=$(center "No New Messages" $CUR_COLS)
 							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
-								NEW_DRAW[2]=$COLOR_GREN"${DATA_ARRAY[$i]}\
-$COLOR_NORM New Messages"
+								NEW_DRAW[2]=$(center $COLOR_GREN\
+"${DATA_ARRAY[$i]}$COLOR_NORM New Messages" $CUR_COLS)
 							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
-								NEW_DRAW[2]=$COLOR_GREN"1\
-$COLOR_NORM New Message"
+								NEW_DRAW[2]=$(center $COLOR_GREN\
+"1$COLOR_NORM New Message" $CUR_COLS)
 							fi
 						# For each message
 						else
@@ -784,6 +793,20 @@ $COLOR_NORM $COLOR_ULINE$(truncate\
 						fi
 					fi
 				done
+
+				# Print the update date at the bottom
+				SOURCE_STRING="mail"
+				if [ "$EMAIL_SOURCE" == "Gmail" ]; then
+					SOURCE_STRING="$COLOR_BLUE""G$COLOR_RED""m$COLOR_YELO"\
+"a$COLOR_BLUE""i$COLOR_GREN""l$COLOR_RESET"
+				fi
+				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | \
+$SOURCE_STRING" $CUR_COLS)
+				if [ "$CUR_ROWS" -gt 10 ]; then
+					NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+						"[ $COLOR_BLUE$EMAIL_USER$COLOR_RESET ]" $CUR_COLS)
+				fi
 			fi
 		fi
 
@@ -856,8 +879,8 @@ $D_hu;$D_time;$D_cred;$D_w_dir;$D_w_mph;$D_vis;$D_loc;$D_lat;$D_lon\n"
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=""; done
 
-				# Smallest heights (3-7): just show most relevant info
-				if [ "$CUR_ROWS" -lt 8 ]; then
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
 					# Row 0 shows the weather status
 					NEW_DRAW[0]=$(center "${DATA_ARRAY[0]}" $CUR_COLS)
 
@@ -894,8 +917,8 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 							$CUR_COLS)
 					fi
 
-				# Medium heights (8-19): add some formatting
-				elif [ "$CUR_ROWS" -lt 20 ]; then
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
 					# Row 0 has a heading
 					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Weather\
 $COLOR_ULINE_OFF]$COLOR_NORM"
@@ -1065,7 +1088,7 @@ ${DATA_ARRAY[9]}"mph"
 							$CUR_COLS)
 					fi
 
-				# Largest heights (20+): the full Monty!
+				# Largest heights (26+): the full Monty!
 				else
 					# Rows 0-1 have a heading
 					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
