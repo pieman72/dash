@@ -415,18 +415,23 @@ function render_sections(){
 	fi
 
 	# Compute optimal size per section
-	TEMP_WIDTH=SECTION_MIN_COLS
-	while [ "$((SECTS * (TEMP_WIDTH+1) - 1))" -lt "$COLS" ]; do
-		((TEMP_WIDTH+=10))
+	BEST_X=1
+	BEST_DIFF=100
+	for TEMP_X in `seq 1 $SECTS`; do
+		TEMP_Y=$(( SECTS/TEMP_X + (SECTS%TEMP_X ? 1 : 0) ))
+		if [ "$COLS" -lt "$(( (SECTION_MIN_COLS+1)*TEMP_X-1 ))" ]\
+				|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*TEMP_Y-1 ))" ]; then
+			continue
+		fi
+		RATING=$(( ( (ROWS * 200) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
+		DIFF="${RATING#-}"
+		if [ "$DIFF" -lt "$BEST_DIFF" ]; then
+			BEST_DIFF=$DIFF
+			BEST_X=$TEMP_X
+		fi
 	done
-	TEMP_WIDTH=$(( TEMP_WIDTH>COLS ? COLS : TEMP_WIDTH ))
-	SECTS_X=$(( (COLS+1)/(TEMP_WIDTH+1) ))
+	SECTS_X=BEST_X
 	SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
-	while [ "$(( SECTS_Y*COLS*5 ))" -lt "$(( SECTS_X*ROWS*12 ))" ]\
-			&& [ "$SECTS_X" -gt 1 ]; do
-		((--SECTS_X))
-		SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
-	done
 	BLANK_SECTS=$(( SECTS_X*SECTS_Y - SECTS ))
 	if [ "$BLANK_SECTS" -gt "0" ]; then
 		SECTS=$(( SECTS + BLANK_SECTS ))
