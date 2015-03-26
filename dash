@@ -32,7 +32,7 @@ SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
 SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
 STARTED=0
 
-# Output formatting
+# Color palettes
 if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
@@ -48,6 +48,7 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_ORNG="[38;5;208m"
 	COLOR_YELO="[38;5;227m"
 	COLOR_GRAY="[38;5;245m"
+	COLOR_LGRY="[38;5;249m"
 	COLOR_WHIT="[38;5;15m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[48;5;118m"
@@ -58,7 +59,15 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_BG_ORNG="[48;5;208m"
 	COLOR_BG_YELO="[48;5;227m"
 	COLOR_BG_GRAY="[48;5;245m"
+	COLOR_BG_LGRY="[48;5;249m"
 	COLOR_BG_WHIT="[48;5;15m"
+	COLOR_HEAT_0="[38;5;21m"
+	COLOR_HEAT_1="[38;5;63m"
+	COLOR_HEAT_2="[38;5;147m"
+	COLOR_HEAT_3="[38;5;231m"
+	COLOR_HEAT_4="[38;5;217m"
+	COLOR_HEAT_5="[38;5;203m"
+	COLOR_HEAT_6="[38;5;196m"
 elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
@@ -74,6 +83,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_ORNG="[33m"
 	COLOR_YELO="[1;33m"
 	COLOR_GRAY="[37m"
+	COLOR_LGRY="[37m"
 	COLOR_WHIT="[1;37m"
 	COLOR_BG_NORM="[0;49m"
 	COLOR_BG_GREN="[42m"
@@ -84,7 +94,15 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_BG_ORNG="[43m"
 	COLOR_BG_YELO="[1;43m"
 	COLOR_BG_GRAY="[47m"
+	COLOR_BG_LGRY="[47m"
 	COLOR_BG_WHIT="[1;47m"
+	COLOR_HEAT_0="[34m"
+	COLOR_HEAT_1="[1;34m"
+	COLOR_HEAT_2="[36m"
+	COLOR_HEAT_3="[1;36m"
+	COLOR_HEAT_4="[37m"
+	COLOR_HEAT_5="[1;31m"
+	COLOR_HEAT_6="[31m"
 elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD=""
@@ -100,6 +118,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_ORNG="[33m"
 	COLOR_YELO="[33m"
 	COLOR_GRAY="[37m"
+	COLOR_LGRY="[37m"
 	COLOR_WHIT="[37m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[42m"
@@ -110,8 +129,18 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_BG_ORNG="[43m"
 	COLOR_BG_YELO="[43m"
 	COLOR_BG_GRAY="[47m"
+	COLOR_BG_LGRY="[47m"
 	COLOR_BG_WHIT="[47m"
+	COLOR_HEAT_0="[34m"
+	COLOR_HEAT_1="[34m"
+	COLOR_HEAT_2="[36m"
+	COLOR_HEAT_3="[36m"
+	COLOR_HEAT_4="[37m"
+	COLOR_HEAT_5="[31m"
+	COLOR_HEAT_6="[31m"
 fi
+
+# Control functions
 function msg(){
 	echo -e "$COLOR_RESET$COLOR_GRAY[Dash]$COLOR_NORM $1\n"
 }
@@ -121,6 +150,18 @@ function error(){
 	read -p "$(echo -e '[Press ENTER to exit]\n\b')" TMP
 	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
 }
+function handleWindowChange(){
+	render_sections
+}
+function handleInterrupt(){
+	exit 0
+}
+function handleExit(){
+	stty echo
+	tput rmcup
+}
+
+# Output formatting
 function center(){
 	LEN=$(wc -m <<< "$1")
 	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
@@ -140,6 +181,19 @@ function extend(){
 	else
 		echo -n "$1"
 	fi
+}
+function randomize(){
+	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
+	RET=""
+	ORDER=""
+	while [ "${#ORDER}" -lt "$2" ]; do
+		ORDER=$ORDER$(grep -o "[0-$LEN]"<<<$(date +%s%3N|md5sum)|paste -sd "")
+	done
+	for i in `seq 0 $(($2 - 1))`; do
+		POS=${ORDER:$i:1}
+		RET="$RET"${1:$POS:1}
+	done
+	echo $RET
 }
 declare -A LARGE_READ_OUT
 LARGE_READ_OUT["0",0]=" XXX "
@@ -237,29 +291,6 @@ function GCD(){
 		REM=$((NUM%DEN))
 	done
 	echo $DEN
-}
-function randomize(){
-	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
-	RET=""
-	ORDER=""
-	while [ "${#ORDER}" -lt "$2" ]; do
-		ORDER=$ORDER$(grep -o "[0-$LEN]"<<<$(date +%s%3N|md5sum)|paste -sd "")
-	done
-	for i in `seq 0 $(($2 - 1))`; do
-		POS=${ORDER:$i:1}
-		RET="$RET"${1:$POS:1}
-	done
-	echo $RET
-}
-function handleWindowChange(){
-	render_sections
-}
-function handleInterrupt(){
-	exit 0
-}
-function handleExit(){
-	stty echo
-	tput rmcup
 }
 
 # Handle CLI args
@@ -522,9 +553,9 @@ function render_sections(){
 					for i in `seq 0 $((MAILCOUNT - 1))`; do
 						ENTRY=${FEED[$i]}
 						D_senderName=$(grep -oPm1 "(?<=<name>)[^<]*"\
-							<<< "$ENTRY" | tail -n1)
+							<<< "$ENTRY" | head -n1)
 						D_senderEmail=$(grep -oPm1 "(?<=<email>)[^<]*"\
-							<<< "$ENTRY" | tail -n1)
+							<<< "$ENTRY" | head -n1)
 						D_subject=$(grep -oPm1 "(?<=<title>)[^<]*"\
 							<<< "$ENTRY")
 						D_date=$(date -d "$(grep -oPm1 "(?<=<modified>)[^<]*"\
@@ -574,20 +605,29 @@ function render_sections(){
 						MESSAGE_AGE=$(( $(date '+%s') - ${DATA_PIECES[2]} ))
 						if [ "$MESSAGE_AGE" -gt 31536000 ]; then
 							DATE_STRING=$(date -d "@${DATA_PIECES[2]}" '+%F')
+							DATE_COLOR=$COLOR_HEAT_0
 						elif [ "$MESSAGE_AGE" -gt 5184000 ]; then
 							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
 								'+%_m/%d')
+							DATE_COLOR=$COLOR_HEAT_1
 						elif [ "${DATA_PIECES[2]}" -lt\
 								"$(date -d 'today 00:00:00' '+%s')" ]; then
 							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
 								'+%b %e')
+							DATE_COLOR=$COLOR_HEAT_2
 						elif [ "$MESSAGE_AGE" -gt 300 ]; then
 							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
 								'+%l:%M%P')
-						elif [ "$MESSAGE_AGE" -gt 60 ]; then
+							DATE_COLOR=$COLOR_HEAT_3
+						elif [ "$MESSAGE_AGE" -gt 120 ]; then
 							DATE_STRING="$(( MESSAGE_AGE/60 )) minutes ago"
+							DATE_COLOR=$COLOR_HEAT_4
+						elif [ "$MESSAGE_AGE" -gt 60 ]; then
+							DATE_STRING="1 minute ago"
+							DATE_COLOR=$COLOR_HEAT_5
 						else
 							DATE_STRING="just now"
+							DATE_COLOR=$COLOR_HEAT_6
 						fi
 					fi
 
@@ -596,7 +636,14 @@ function render_sections(){
 						# For the heading
 						if [ "$i" == 0 ]; then
 							# Row 0 shows the message count
-							NEW_DRAW[0]="${DATA_ARRAY[$i]} New Messages"
+							NEW_DRAW[0]="No New Messages"
+							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
+								NEW_DRAW[0]=$COLOR_GREN"${DATA_ARRAY[$i]}\
+$COLOR_NORM New Messages"
+							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
+								NEW_DRAW[0]=$COLOR_GREN"1\
+$COLOR_NORM New Message"
+							fi
 						# For each message
 						else
 							# Row 1... Shows sender name and subject
@@ -605,11 +652,17 @@ function render_sections(){
 								LEN_SENDER=$(( ( (35*CUR_COLS)/100 ) > 15 ?\
 									( (35*CUR_COLS)/100 ) : 15 ))
 							fi
+							LEN_DATE=${#DATE_STRING}
 							NEW_DRAW[$i]="$COLOR_BOLD$(truncate\
 								"${DATA_PIECES[0]}"\
-								"$LEN_SENDER")$COLOR_BOLD_OFF - $(truncate\
-								"${DATA_PIECES[3]}"\
-								"$(( CUR_COLS - (LEN_SENDER+3) ))")"
+								"$LEN_SENDER"\
+							)$COLOR_BOLD_OFF - $(extend\
+								"$(truncate\
+									"${DATA_PIECES[3]}"\
+									"$((CUR_COLS-(LEN_SENDER+4+LEN_DATE)))"\
+								)"\
+								"$((CUR_COLS-(LEN_SENDER+4+LEN_DATE)))"\
+							) $DATE_COLOR$DATE_STRING$COLOR_NORM"
 						fi
 
 					# Medium heights (8-19): add some formatting
@@ -621,18 +674,25 @@ function render_sections(){
 $COLOR_ULINE_OFF]$COLOR_NORM"
 
 							# Row 1 shows the message count
-#TODO: style this and handle singular/plural
-							NEW_DRAW[1]="${DATA_ARRAY[$i]} New Messages"
+							NEW_DRAW[1]="No New Messages"
+							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
+								NEW_DRAW[1]=$COLOR_GREN"${DATA_ARRAY[$i]}\
+$COLOR_NORM New Messages"
+							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
+								NEW_DRAW[1]=$COLOR_GREN"1\
+$COLOR_NORM New Message"
+							fi
 						# For each message
 						else
 							# Row 2... shows the sender's name and date
-							NEW_DRAW[$(( i*3 ))]="From: $COLOR_BOLD$(extend\
+							NEW_DRAW[$(( i*3 ))]=$COLOR_GRAY"From:\
+$COLOR_NORM $COLOR_BOLD$(extend\
 								"$(truncate\
 									"${DATA_PIECES[0]}"\
 									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
 								)"\
 								"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
-							)$COLOR_BOLD_OFF $DATE_STRING"
+							)$COLOR_BOLD_OFF $DATE_COLOR$DATE_STRING$COLOR_NORM"
 
 							# Row 3... shows the subject and message content
 							LEN_SUBJECT=${#DATA_PIECES[3]}
@@ -664,23 +724,58 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF - $(truncate\
 							fi
 
 							# Row 2 shows the message count
-#TODO: style this and handle singular/plural
-							NEW_DRAW[2]="${DATA_ARRAY[$i]} New Messages"
+							NEW_DRAW[2]="No New Messages"
+							if [ "${DATA_ARRAY[$i]}" -gt 1 ]; then
+								NEW_DRAW[2]=$COLOR_GREN"${DATA_ARRAY[$i]}\
+$COLOR_NORM New Messages"
+							elif [ "${DATA_ARRAY[$i]}" == 1 ]; then
+								NEW_DRAW[2]=$COLOR_GREN"1\
+$COLOR_NORM New Message"
+							fi
 						# For each message
 						else
 							# Row 3... shows the sender's info and date
-#TODO: fix width and have date column (max width=14) at far right
-							NEW_DRAW[$((i*4))]="From: $COLOR_BOLD\
-${DATA_PIECES[0]}$COLOR_BOLD_OFF  <${DATA_PIECES[1]}>  -  $DATE_STRING"
+							if [ "$(( ${#DATA_PIECES[0]} + ${#DATE_STRING}\
+									+ 8))" -gt "$CUR_COLS" ]; then
+								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
+$COLOR_NORM $COLOR_BOLD$(truncate\
+									"${DATA_PIECES[0]}"\
+									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
+								)$COLOR_BOLD_OFF \
+$DATE_COLOR$DATE_STRING$COLOR_NORM"
+							elif [ "$(( ${#DATA_PIECES[0]}\
+									+ ${#DATA_PIECES[1]} + ${#DATE_STRING}\
+									+ 10))" -gt "$CUR_COLS" ]; then
+								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
+$COLOR_NORM $COLOR_BOLD${DATA_PIECES[0]}$COLOR_BOLD_OFF $(extend\
+									"<$(truncate "${DATA_PIECES[1]}"\
+										"$(( $CUR_COLS-(${#DATE_STRING}\
+											+${#DATA_PIECES[0]}+10) ))"\
+									)>"\
+									"$(( $CUR_COLS-(${#DATE_STRING}\
+										+${#DATA_PIECES[0]}+8) ))"\
+								) $DATE_COLOR$DATE_STRING$COLOR_NORM"
+							else
+								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
+$COLOR_NORM $COLOR_BOLD${DATA_PIECES[0]}$COLOR_BOLD_OFF $(extend\
+									"<${DATA_PIECES[1]}>"\
+									"$(( $CUR_COLS-(${#DATE_STRING}\
+										+${#DATA_PIECES[0]}+8) ))"\
+								) $DATE_COLOR$DATE_STRING$COLOR_NORM"
+							fi
 
 							# Row 4... shows the subject
-#TODO: truncate long lines, maybe add decorator before/after?
-							NEW_DRAW[$((i*4+1))]="Subject: $COLOR_ULINE\
-${DATA_PIECES[3]}$COLOR_ULINE_OFF"
+							NEW_DRAW[$((i*4+1))]=$COLOR_GRAY"Subject:\
+$COLOR_NORM $COLOR_ULINE$(truncate\
+								"${DATA_PIECES[3]}"\
+								$(( $CUR_COLS-9 ))\
+							)$COLOR_ULINE_OFF"
 
-#TODO: truncate long lines, maybe show more than one?
 							# Row 5... shows the message content
-							NEW_DRAW[$((i*4+2))]="${DATA_PIECES[4]}"
+							NEW_DRAW[$((i*4+2))]="$(truncate\
+								"${DATA_PIECES[4]}"\
+								"$CUR_COLS"\
+							)"
 						fi
 					fi
 				done
@@ -851,6 +946,10 @@ $DISPLAY_ESCAPE_SPACE"
 							DECORATION_STRING="333~~"
 						fi
 						DECORATION_COLOR="$COLOR_GRAY"
+					# Light Rain
+					elif [ "${DATA_ARRAY[0]}" == "Light Rain" ]; then
+						DECORATION_STRING='``'"''\\\|   "
+						DECORATION_COLOR="$COLOR_BLUE"
 					# Rain
 					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
 						DECORATION_STRING='````'"'''\\\\\|"
@@ -859,11 +958,19 @@ $DISPLAY_ESCAPE_SPACE"
 					elif [ "${DATA_ARRAY[0]}" ==\
 						"Light Freezing Rain Fog/Mist" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="\`\`\\\\☁~   "
+							DECORATION_STRING="\`\`\\ᢆ☁~   "
 						else
 							DECORATION_STRING="\`\`\\\\3~   "
 						fi
 						DECORATION_COLOR="$COLOR_LBLU"
+					# Fog/Mist
+					elif [ "${DATA_ARRAY[0]}" == "Fog/Mist" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁ᢆᢆ░~  "
+						else
+							DECORATION_STRING="3++#~  "
+						fi
+						DECORATION_COLOR="$COLOR_LGRY"
 					# Light Snow
 					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -1023,6 +1130,11 @@ $DISPLAY_ESCAPE_SPACE"
 						fi
 						DECORATION_COLOR="$COLOR_GRAY"
 						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
+					# Light Rain
+					elif [ "${DATA_ARRAY[0]}" == "Light Rain" ]; then
+						DECORATION_STRING='``'"''\\\|   "
+						DECORATION_COLOR="$COLOR_BLUE"
+						DECORATION_COLOR_BG="$COLOR_BG_BLUE"
 					# Rain
 					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
 						DECORATION_STRING='````'"'''\\\\\|"
@@ -1032,12 +1144,21 @@ $DISPLAY_ESCAPE_SPACE"
 					elif [ "${DATA_ARRAY[0]}" ==\
 						"Light Freezing Rain Fog/Mist" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="\`\`\\\\☁~   "
+							DECORATION_STRING="\`\`\\ᢆ☁~   "
 						else
 							DECORATION_STRING="\`\`\\\\3~   "
 						fi
 						DECORATION_COLOR="$COLOR_LBLU"
 						DECORATION_COLOR_BG="$COLOR_BG_LBLU"
+					# Fog/Mist
+					elif [ "${DATA_ARRAY[0]}" == "Fog/Mist" ]; then
+						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+							DECORATION_STRING="☁ᢆᢆ░~  "
+						else
+							DECORATION_STRING="3++#~  "
+						fi
+						DECORATION_COLOR="$COLOR_LGRY"
+						DECORATION_COLOR_BG="$COLOR_BG_LGRY"
 					# Light Snow
 					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
 						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
