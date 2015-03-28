@@ -21,12 +21,26 @@ if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '│')
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '─')
 	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '┼')
-	DISPLAY_SEPARATOR_CA=$(load_config "DISPLAY_SEPARATOR_CA" '┴')
+	DISPLAY_SEPARATOR_T=$(load_config "DISPLAY_SEPARATOR_T" '┬')
+	DISPLAY_SEPARATOR_B=$(load_config "DISPLAY_SEPARATOR_B" '┴')
+	DISPLAY_SEPARATOR_L=$(load_config "DISPLAY_SEPARATOR_L" '├')
+	DISPLAY_SEPARATOR_R=$(load_config "DISPLAY_SEPARATOR_R" '┤')
+	DISPLAY_SEPARATOR_TL=$(load_config "DISPLAY_SEPARATOR_TL" '┌')
+	DISPLAY_SEPARATOR_TR=$(load_config "DISPLAY_SEPARATOR_TR" '┐')
+	DISPLAY_SEPARATOR_BL=$(load_config "DISPLAY_SEPARATOR_BL" '└')
+	DISPLAY_SEPARATOR_BR=$(load_config "DISPLAY_SEPARATOR_BR" '┘')
 else
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '|')
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '-')
 	DISPLAY_SEPARATOR_C=$(load_config "DISPLAY_SEPARATOR_C" '+')
-	DISPLAY_SEPARATOR_CA=$(load_config "DISPLAY_SEPARATOR_CA" '-')
+	DISPLAY_SEPARATOR_T=$(load_config "DISPLAY_SEPARATOR_T" '-')
+	DISPLAY_SEPARATOR_B=$(load_config "DISPLAY_SEPARATOR_B" '-')
+	DISPLAY_SEPARATOR_L=$(load_config "DISPLAY_SEPARATOR_L" '|')
+	DISPLAY_SEPARATOR_R=$(load_config "DISPLAY_SEPARATOR_R" '|')
+	DISPLAY_SEPARATOR_TL=$(load_config "DISPLAY_SEPARATOR_TL" '+')
+	DISPLAY_SEPARATOR_TR=$(load_config "DISPLAY_SEPARATOR_TR" '+')
+	DISPLAY_SEPARATOR_BL=$(load_config "DISPLAY_SEPARATOR_BL" '+')
+	DISPLAY_SEPARATOR_BR=$(load_config "DISPLAY_SEPARATOR_BR" '+')
 fi
 SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
 SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
@@ -49,7 +63,9 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_YELO="[38;5;227m"
 	COLOR_GRAY="[38;5;245m"
 	COLOR_LGRY="[38;5;249m"
+	COLOR_DGRY="[38;5;236m"
 	COLOR_WHIT="[38;5;15m"
+	COLOR_BLCK="[38;5;0m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[48;5;118m"
 	COLOR_BG_BLUE="[48;5;26m"
@@ -60,7 +76,9 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_BG_YELO="[48;5;227m"
 	COLOR_BG_GRAY="[48;5;245m"
 	COLOR_BG_LGRY="[48;5;249m"
+	COLOR_BG_DGRY="[48;5;236m"
 	COLOR_BG_WHIT="[48;5;15m"
+	COLOR_BG_BLCK="[48;5;0m"
 	COLOR_HEAT_0="[38;5;21m"
 	COLOR_HEAT_1="[38;5;63m"
 	COLOR_HEAT_2="[38;5;147m"
@@ -84,7 +102,9 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_YELO="[1;33m"
 	COLOR_GRAY="[37m"
 	COLOR_LGRY="[37m"
+	COLOR_DGRY="[1;30m"
 	COLOR_WHIT="[1;37m"
+	COLOR_BLCK="[30m"
 	COLOR_BG_NORM="[0;49m"
 	COLOR_BG_GREN="[42m"
 	COLOR_BG_BLUE="[1;44m"
@@ -95,7 +115,9 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_BG_YELO="[1;43m"
 	COLOR_BG_GRAY="[47m"
 	COLOR_BG_LGRY="[47m"
+	COLOR_BG_DGRY="[1;40m"
 	COLOR_BG_WHIT="[1;47m"
+	COLOR_BG_BLCK="[40m"
 	COLOR_HEAT_0="[34m"
 	COLOR_HEAT_1="[1;34m"
 	COLOR_HEAT_2="[36m"
@@ -119,7 +141,9 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_YELO="[33m"
 	COLOR_GRAY="[37m"
 	COLOR_LGRY="[37m"
+	COLOR_DGRY="[37m"
 	COLOR_WHIT="[37m"
+	COLOR_BLCK="[30m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[42m"
 	COLOR_BG_BLUE="[44m"
@@ -130,7 +154,9 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_BG_YELO="[43m"
 	COLOR_BG_GRAY="[47m"
 	COLOR_BG_LGRY="[47m"
+	COLOR_BG_DGRY="[47m"
 	COLOR_BG_WHIT="[47m"
+	COLOR_BG_BLCK="[40m"
 	COLOR_HEAT_0="[34m"
 	COLOR_HEAT_1="[34m"
 	COLOR_HEAT_2="[36m"
@@ -164,10 +190,14 @@ function handleExit(){
 # Output formatting
 function center(){
 	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
-	printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
+	if [ "$LEN" -lt "$2" ]; then
+		printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
+	else
+		echo "$1"
+	fi
 }
 function truncate(){
-	LEN=$(( $(wc -m <<< "$1") - 1 ))
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
 	if [ "$LEN" -gt "$2" ];then
 		echo -n "${1:0:$(( $2 - 3))}..."
 	else
@@ -175,12 +205,23 @@ function truncate(){
 	fi
 }
 function extend(){
-	LEN=$(( $(wc -m <<< "$1") - 1 ))
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
 	if [ "$LEN" -lt "$2" ];then
 		printf "%s%*s" "$1" $(($2 - $LEN)) " "
 	else
 		echo -n "$1"
 	fi
+}
+function extendl(){
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
+	if [ "$LEN" -lt "$2" ];then
+		printf "%*s%s" $(($2 - $LEN)) " " "$1"
+	else
+		echo -n "$1"
+	fi
+}
+function centerex(){
+	echo "$(extend "$(center "$1" $2)" $2)"
 }
 function randomize(){
 	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
@@ -194,6 +235,48 @@ function randomize(){
 		RET="$RET"${1:$POS:1}
 	done
 	echo $RET
+}
+function heat(){
+	COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2" "$COLOR_HEAT_3"\
+		"$COLOR_HEAT_4" "$COLOR_HEAT_5" "$COLOR_HEAT_6")
+	RANGE="$(echo "$3 - $2" | bc -l)"
+	VALUE="$(echo "$1 - $2" | tr -d "%[:alpha:]" | bc -l)"
+	SCALE="$(echo "$VALUE * 7 / $RANGE" | bc -l)"
+	INDEX=${SCALE%.*}
+	echo -en "${COLORS[$(( INDEX>6 ? 6 : INDEX ))]}$1$COLOR_RESET"
+}
+function fmt_mem(){
+	MEM=$1
+	UNITS=("B KiB MiB GiB TiB PiB EiB ZiB YiB")
+	for UNIT in $UNITS; do
+		if [ "${MEM%.*}" -lt "1024" ]; then
+			echo "$MEM$UNIT"
+			return
+		else
+			MEM="$(echo "scale=$2; $MEM / 1024.00" | bc)"
+		fi
+	done
+	echo $MEM"YiB"
+}
+function percent_bar(){
+	USE_WIDTH=$(printf "%.0f" "$(echo "$1*$2" | bc)")
+	USE_PERC=$(printf "%2.0f" "$(echo "$1*100" | bc)")
+	RET=$4$COLOR_DGRY
+	for POS in `seq 0 $(( $2-1 ))`; do
+		if [ "$POS" -eq "$USE_WIDTH" ]; then
+			RET=$RET$COLOR_BG_DGRY$3
+		fi
+		if [ "$POS" -eq "$(( ($2+1)/2 - 1 ))" ]; then
+			RET=$RET${USE_PERC:0:1}
+		elif [ "$POS" -eq "$(( ($2+1)/2 ))" ]; then
+			RET=$RET${USE_PERC:1:1}
+		elif [ "$POS" -eq "$(( ($2+1)/2 + 1 ))" ]; then
+			RET=$RET"%"
+		else
+			RET=$RET" "
+		fi
+	done
+	echo -n "$RET$COLOR_RESET"
 }
 declare -A LARGE_READ_OUT
 LARGE_READ_OUT["0",0]=" XXX "
@@ -746,7 +829,8 @@ $COLOR_NORM $COLOR_BOLD$(extend\
 									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
 								)"\
 								"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
-							)$COLOR_BOLD_OFF $DATE_COLOR$DATE_STRING$COLOR_NORM"
+							)$COLOR_BOLD_OFF \
+							$DATE_COLOR$DATE_STRING$COLOR_NORM"
 
 							# Row 3... shows the subject and message content
 							LEN_SUBJECT=${#DATA_PIECES[3]}
@@ -1462,6 +1546,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 		# --- System Stats ----------------------------------
 		if [ "$CUR_SECT" == 'Y' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
+# TODO:
 DATA_FRESH=0
 			if [ "$DATA_FRESH" = 0 ]; then
 				NEW_DATA=""
@@ -1516,16 +1601,15 @@ DATA_FRESH=0
 					D_CPU_user=$(echo "$oneCPU" | cut -f4)
 					D_CPU_kernel=$(echo "$oneCPU" | cut -f6)
 					D_CPU_io=$(echo "$oneCPU" | cut -f7)
-					D_CPU_hw_interrupt=$(echo "$oneCPU" | cut -f8)
-					D_CPU_sw_interrupt=$(echo "$oneCPU" | cut -f9)
+					D_CPU_interrupt=$(echo "$(echo "$oneCPU" | cut -f8)+\
+$(echo "$oneCPU" | cut -f9)" | bc)
 					D_CPU_idle=$(echo "$oneCPU" | cut -f13)
 					D_CPU_all=$D_CPU_all$(echo -e "\u07")
 					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u06")
 					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u06")
 					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u06")
 					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_hw_interrupt$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_sw_interrupt$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_interrupt$(echo -e "\u06")
 					D_CPU_all=$D_CPU_all$D_CPU_idle
 				done
 				IFS=$OLDIFS
@@ -1549,7 +1633,8 @@ DATA_FRESH=0
 						$(echo "$oneFSY" | tr -d 'K' | cut -f3)\
 						* 1024\
 					))
-					D_FSY_used=$(echo "$oneFSY" | cut -f4)
+					D_FSY_used=$(echo "$oneFSY" | cut -f4 | tr -d "%"\
+						| sed 's/^\(.*\)$/scale=4;\1\/100/' | bc)
 					D_FSY_all=$D_FSY_all$(echo -e "\u07")
 					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u06")
 					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u06")
@@ -1620,6 +1705,7 @@ $D_FSY_all;$D_TMP_all"
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+				VBAR="$COLOR_DGRY$DISPLAY_SEPARATOR_V$COLOR_RESET"
 
 				# Smallest heights (3-10): just show most relevant info
 				if [ "$CUR_ROWS" -lt 11 ]; then
@@ -1642,37 +1728,203 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 						NEW_DRAW[1]="--------------+"
 					fi
 
-					NEW_DRAW[2]=$COLOR_GRAY"Hostname:$COLOR_RESET ${DATA_ARRAY[0]}"
-					NEW_DRAW[3]=$COLOR_GRAY"OS:$COLOR_RESET ${DATA_ARRAY[1]}"
-					NEW_DRAW[4]=$COLOR_GRAY"OS short:$COLOR_RESET ${DATA_ARRAY[2]}"
-					NEW_DRAW[5]=$COLOR_GRAY"uptime days:$COLOR_RESET ${DATA_ARRAY[3]}"
-					NEW_DRAW[6]=$COLOR_GRAY"uptime hours:$COLOR_RESET ${DATA_ARRAY[4]}"
-					NEW_DRAW[7]=$COLOR_GRAY"uptime minutes:$COLOR_RESET ${DATA_ARRAY[5]}"
-					NEW_DRAW[8]=$COLOR_GRAY"users:$COLOR_RESET ${DATA_ARRAY[6]}"
-					NEW_DRAW[9]=$COLOR_GRAY"total tasks:$COLOR_RESET ${DATA_ARRAY[7]}"
-					NEW_DRAW[10]=$COLOR_GRAY"running tasks:$COLOR_RESET ${DATA_ARRAY[8]}"
-					NEW_DRAW[11]=$COLOR_GRAY"sleeping tasks:$COLOR_RESET ${DATA_ARRAY[9]}"
-					NEW_DRAW[12]=$COLOR_GRAY"stopped tasks:$COLOR_RESET ${DATA_ARRAY[10]}"
-					NEW_DRAW[13]=$COLOR_GRAY"zombie tasks:$COLOR_RESET ${DATA_ARRAY[11]}"
-					NEW_DRAW[14]=$COLOR_GRAY"CPU data:$COLOR_RESET ${DATA_ARRAY[12]}"
-#   id
-#   % user
-#   % kernel
-#   % io
-#   % hw_interrupt
-#   % sw_interrupt
-#   % idle
-					NEW_DRAW[15]=$COLOR_GRAY"memory size in bytes:$COLOR_RESET ${DATA_ARRAY[13]}"
-					NEW_DRAW[16]=$COLOR_GRAY"memory bytes in use:$COLOR_RESET ${DATA_ARRAY[14]}"
-					NEW_DRAW[17]=$COLOR_GRAY"memory bytes free:$COLOR_RESET ${DATA_ARRAY[15]}"
-					NEW_DRAW[18]=$COLOR_GRAY"filesystem data:$COLOR_RESET ${DATA_ARRAY[16]}"
-#   mount point
-#   size in bytes
-#   % in use
-					NEW_DRAW[19]=$COLOR_GRAY"temperature data:$COLOR_RESET ${DATA_ARRAY[17]}"
-#   sensor name
-#   current temperature
-#   max temperature
+					# Rows 2-6 show general information
+					NEW_DRAW[2]=$(center "* "$COLOR_GRAY$COLOR_ULINE"General"\
+$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[3]=$COLOR_GRAY"Hostname:$COLOR_RESET \
+${DATA_ARRAY[0]}"
+					NEW_DRAW[4]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
+${DATA_ARRAY[1]}"
+					NEW_DRAW[5]=$COLOR_GRAY"Power time:$COLOR_RESET \
+${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hours, ${DATA_ARRAY[5]} Minutes"
+					NEW_DRAW[6]=$COLOR_GRAY"Users online:$COLOR_RESET \
+${DATA_ARRAY[6]}"
+
+					# Rows 8-10 show task information
+					NEW_DRAW[8]=$(center "* "$COLOR_GRAY$COLOR_ULINE"Tasks"\
+$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[9]=$COLOR_GRAY"Total:$COLOR_RESET $(extend\
+						"${DATA_ARRAY[7]}" 5) ["
+					BAR_WIDTH=$(( CUR_COLS-15 ))
+					RUN_WIDTH=$(( DATA_ARRAY[8] / BAR_WIDTH +\
+						(DATA_ARRAY[8]?1:0)))
+					STP_WIDTH=$(( DATA_ARRAY[10] / BAR_WIDTH +\
+						(DATA_ARRAY[10]?1:0)))
+					ZMB_WIDTH=$(( DATA_ARRAY[11] / BAR_WIDTH +\
+						(DATA_ARRAY[11]?1:0)))
+					SLP_WIDTH=$(( BAR_WIDTH-(RUN_WIDTH+STP_WIDTH+ZMB_WIDTH) ))
+					NEW_DRAW[9]=${NEW_DRAW[9]}$COLOR_GREN$(randomize "="\
+						$RUN_WIDTH)
+					NEW_DRAW[9]=${NEW_DRAW[9]}$COLOR_BLUE$(randomize "="\
+						$SLP_WIDTH)
+					NEW_DRAW[9]=${NEW_DRAW[9]}$COLOR_RED$(randomize "="\
+						$STP_WIDTH)
+					NEW_DRAW[9]=${NEW_DRAW[9]}$COLOR_GRAY$(randomize "="\
+						$ZMB_WIDTH)
+					NEW_DRAW[9]=${NEW_DRAW[9]}"]"
+					NEW_DRAW[10]=""
+					NEW_DRAW[10]="${NEW_DRAW[10]}$COLOR_BG_GREN \
+$COLOR_BG_NORM$COLOR_GRAY""Run:$COLOR_NORM ${DATA_ARRAY[8]}  "
+					NEW_DRAW[10]="${NEW_DRAW[10]}$COLOR_BG_BLUE \
+$COLOR_BG_NORM$COLOR_GRAY""Slp:$COLOR_NORM ${DATA_ARRAY[9]}  "
+					NEW_DRAW[10]="${NEW_DRAW[10]}$COLOR_BG_RED \
+$COLOR_BG_NORM$COLOR_GRAY""Stp:$COLOR_NORM ${DATA_ARRAY[10]}  "
+					NEW_DRAW[10]="${NEW_DRAW[10]}$COLOR_BG_GRAY \
+$COLOR_BG_NORM$COLOR_GRAY""Zmb:$COLOR_NORM ${DATA_ARRAY[11]}"
+					NEW_DRAW[10]="$(center "${NEW_DRAW[10]}" $CUR_COLS)"
+
+					# Rows 12-(i-1) show CPU info
+					NEW_DRAW[12]=$(center "* "$COLOR_GRAY$COLOR_ULINE"CPU"\
+$COLOR_RESET" *" $CUR_COLS)
+					CELL_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/15 + 6 ))
+					NEW_DRAW[13]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_TR\
+$COLOR_RESET
+					NEW_DRAW[13]=$(center "${NEW_DRAW[13]}" $CUR_COLS)
+					NEW_DRAW[14]=$VBAR$COLOR_GRAY"CPU"$COLOR_RESET$VBAR\
+$(centerex $COLOR_GRAY"User"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Kernel"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"I/O"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Intrpt"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Idle"$COLOR_RESET $CELL_WIDTH)$VBAR
+					NEW_DRAW[14]=$(center "${NEW_DRAW[14]}" $CUR_COLS)
+					NEW_DRAW[15]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
+					NEW_DRAW[15]=$(center "${NEW_DRAW[15]}" $CUR_COLS)
+					i=16
+					CPU_DATA=${DATA_ARRAY[12]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					CPU_DATA=($CPU_DATA)
+					IFS=$OLDIFS
+					for j in `seq 1 ${CPU_DATA[0]}`; do
+						oneCPU=${CPU_DATA[$j]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneCPU)
+						IFS=$OLDIFS
+						NEW_DRAW[$i]=$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex\
+							"${PARTS[0]}" 3)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[1]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[2]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[3]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[4]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+						((++i))
+					done
+					NEW_DRAW[$i]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_BR\
+$COLOR_RESET
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					((++i))
+
+					# Rows (i+1)-(j-1) show memory usage
+					j=$i
+					NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Mem Use"$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
+" $(fmt_mem "${DATA_ARRAY[13]}" 1)" $CUR_COLS)
+					NEW_DRAW[((++j))]=$(percent_bar\
+						$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
+						$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
+					NEW_DRAW[$j]=$(center "${NEW_DRAW[$j]}" $CUR_COLS)
+					((++j))
+
+					# Rows (j+1)-(k-1) show filesystem usage
+					k=$j
+					NEW_DRAW[((++k))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Filesystems"$COLOR_RESET" *" $CUR_COLS)
+					MOUNT_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/12 + 18 ))
+					SIZE_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/18 + 8 ))
+					BAR_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/9 + 10 ))
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_TR$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]=$VBAR\
+$(extend $COLOR_GRAY" Mount"$COLOR_RESET $MOUNT_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Capacity"$COLOR_RESET $SIZE_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Usage"$COLOR_RESET $BAR_WIDTH)$VBAR
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					FSY_DATA=${DATA_ARRAY[16]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					FSY_DATA=($FSY_DATA)
+					IFS=$OLDIFS
+					for FSYno in `seq 1 ${FSY_DATA[0]}`; do
+						oneFSY=${FSY_DATA[$FSYno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneFSY)
+						IFS=$OLDIFS
+						NEW_DRAW[((++k))]=$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(truncate "$(extend\
+							" ${PARTS[0]}" $MOUNT_WIDTH)" $MOUNT_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex "$(extendl\
+							"$(fmt_mem ${PARTS[1]} 1)" 8)" $SIZE_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex\
+							"$(percent_bar\
+								"${PARTS[2]}" $BAR_WIDTH\
+								$COLOR_ORNG $COLOR_BG_ORNG\
+							)"\
+							$BAR_WIDTH\
+						)$VBAR
+						NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					done
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					((++k))
+
+					# Rows (k+1)-(l-1) show filesystem usage
+					l=$k
+					NEW_DRAW[((++l))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Temperature"$COLOR_RESET" *" $CUR_COLS)
+					TMP_DATA=${DATA_ARRAY[17]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					TMP_DATA=($TMP_DATA)
+					IFS=$OLDIFS
+					for TMPno in `seq 1 ${TMP_DATA[0]}`; do
+						oneTMP=${TMP_DATA[$TMPno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneTMP)
+						IFS=$OLDIFS
+NEW_DRAW[((++l))]="${PARTS[0]} ${PARTS[1]} ${PARTS[2]}"
+						NEW_DRAW[$l]=$(center "${NEW_DRAW[$l]}" $CUR_COLS)
+					done
+					((++l))
 				fi
 			fi
 		fi
@@ -1715,7 +1967,7 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 						if [[ "$PREV_SECT" != "_" ]]; then
 							echo -n $DISPLAY_SEPARATOR_C;
 						else
-							echo -n $DISPLAY_SEPARATOR_CA;
+							echo -n $DISPLAY_SEPARATOR_CB;
 						fi
 					fi
 					if [ "$DISPLAY_SEPARATOR_H" == "-" ]; then
