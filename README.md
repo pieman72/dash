@@ -70,6 +70,8 @@ separations
 separations
 * `DISPLAY_SEPARATOR_C` ([char]) - Character to use for pane separation
 intersections
+* `DISPLAY_SEPARATOR_CA` ([char]) - Character to use for pane separation
+intersections with no lower pane (won't occur until 7 panes?)
 
 *Specific settings* These settings are specific to individual panes
 _*Email*_
@@ -88,5 +90,10 @@ and is used to search the weather API. ICAO codes in the USA start with 'K'
 followed by the value from the "CALL-ID" column in
 [this list](http://www.weather2000.com/1st_order_wbans.txt) (e.g. central park,
 New York City gets "KNYC").
-* `WEATHER_TEMPERATURE_UNITS` (F|C) - Get temperature readout in degrees
+* `WEATHER_TEMPERATURE_UNITS` (`F`|`C`) - Get weather temperature readout in
+degrees Fahrenheit or Celsius.
+_*System Stats*_
+* `STATS_SECONDS_PER_POLL` ([int]) - The number of seconds data is considered
+to be "fresh". It's generally safe to keep this pretty low.
+* `STATS_TEMPERATURE_UNITS` (`F`|`C`) - Get core temperature readout in degrees
 Fahrenheit or Celsius.
