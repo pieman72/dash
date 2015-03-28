@@ -388,6 +388,7 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 fi
 if [ "$SHOW_STATS" = 1 ]; then
 	STATS_SECONDS_PER_POLL=$(load_config "STATS_SECONDS_PER_POLL" "60")
+	STATS_TEMPERATURE_UNITS=$(load_config "STATS_TEMPERATURE_UNITS" "F")
 fi
 
 # Save the old screen, block input echo, and set signal traps
@@ -539,7 +540,50 @@ function render_sections(){
 
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
-			echo -n ""
+			# If the data is old, fetch new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				NEW_DATA="---"
+				DATA=$NEW_DATA
+			else
+				DATA=$OLD_DATA
+			fi
+
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Expand the data into an array, handling string escapes
+				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
+				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
+				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$DISPLAY_ESCAPE_SPACE/ }
+				done
+
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
+					NEW_DRAW[0]=" "
+
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Calendar\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+				# Largest heights (26+): the full Monty!
+				else
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY Calendar $COLOR_NORM│"
+						NEW_DRAW[1]="──────────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY Calendar $COLOR_NORM|"
+						NEW_DRAW[1]="--------------+"
+					fi
+				fi
+			fi
 		fi
 
 		# --- Email -----------------------------------------
@@ -573,7 +617,6 @@ function render_sections(){
 						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u06")
 						NEW_DATA=$NEW_DATA$D_subject$(echo -e "\u06")
 						NEW_DATA=$NEW_DATA$D_content
-						FIRST_ENTRY=0;
 					done
 					IFS=$OLDIFS
 					DATA=$NEW_DATA
@@ -812,12 +855,98 @@ $SOURCE_STRING" $CUR_COLS)
 
 		# --- News ------------------------------------------
 		if [ "$CUR_SECT" == 'N' ]; then
-			echo -n ""
+			# If the data is old, fetch new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				NEW_DATA="---"
+				DATA=$NEW_DATA
+			else
+				DATA=$OLD_DATA
+			fi
+
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Expand the data into an array, handling string escapes
+				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
+				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
+				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$DISPLAY_ESCAPE_SPACE/ }
+				done
+
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
+					NEW_DRAW[0]=" "
+
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"News\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+				# Largest heights (26+): the full Monty!
+				else
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY News $COLOR_NORM│"
+						NEW_DRAW[1]="──────────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY News $COLOR_NORM|"
+						NEW_DRAW[1]="--------------+"
+					fi
+				fi
+			fi
 		fi
 
 		# --- Snake -----------------------------------------
 		if [ "$CUR_SECT" == 'S' ]; then
-			echo -n ""
+			# If the data is old, fetch new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				NEW_DATA="---"
+				DATA=$NEW_DATA
+			else
+				DATA=$OLD_DATA
+			fi
+
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Expand the data into an array, handling string escapes
+				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
+				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
+				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$DISPLAY_ESCAPE_SPACE/ }
+				done
+
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
+					NEW_DRAW[0]=" "
+
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Snake\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+				# Largest heights (26+): the full Monty!
+				else
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY Snake $COLOR_NORM│"
+						NEW_DRAW[1]="──────────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY Snake $COLOR_NORM|"
+						NEW_DRAW[1]="--------------+"
+					fi
+				fi
+			fi
 		fi
 
 		# --- Weather ---------------------------------------
@@ -1332,9 +1461,147 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 
 		# --- System Stats ----------------------------------
 		if [ "$CUR_SECT" == 'Y' ]; then
-			# If the data is old, download new data, otherwise use the old data
+			# If the data is old, fetch new data, otherwise use the old data
+DATA_FRESH=0
 			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA="---"
+				NEW_DATA=""
+
+				# Get the hostname
+				D_host=$(hostname)
+
+				# Get OS info
+				OS_INFO=$(lsb_release -a 2>&1)
+				D_OS_id=$(grep -oPm1 "(?<=Distributor ID:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				D_OS_rel=$(grep -oPm1 "(?<=Release:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				D_OS_code=$(grep -oPm1 "(?<=Codename:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				if [ "$D_OS_id" == "Ubuntu" ]; then
+					D_OS_verShort="$D_OS_id $D_OS_rel"
+					D_OS_ver="$D_OS_id $(grep -oPm1 "(?<=VERSION=\")[^\"]*"\
+						<<< "$(cat /etc/*-release)" | head -n1)"
+				else
+					D_OS_verShort="$D_OS_id $D_OS_rel"
+					D_OS_ver="$D_OS_id$D_OS_rel, $D_OS_code"
+				fi
+
+				# Get system operation info
+				TOP=$(top bsn1 | head -n2 | sed 's/[ \t]\+/\t/g')
+				COM_FEED=$(echo "$TOP" | head -n1)
+				D_COM_upDays=$(echo "$COM_FEED" | cut -f5)
+				D_COM_upHours=$(echo "$COM_FEED" | cut -f7\
+					| sed 's/^\([0-9]\+\):[0-9]\+,$/\1/')
+				D_COM_upMins=$(echo "$COM_FEED" | cut -f7\
+					| sed 's/^[0-9]\+:\([0-9]\+\),$/\1/')
+				D_COM_users=$(echo "$COM_FEED" | cut -f8)
+
+				# Get task info
+				TSK_FEED=$(echo "$TOP" | tail -n1)
+				D_TSK_tot=$(echo "$TSK_FEED" | cut -f2)
+				D_TSK_run=$(echo "$TSK_FEED" | cut -f4)
+				D_TSK_slp=$(echo "$TSK_FEED" | cut -f6)
+				D_TSK_stp=$(echo "$TSK_FEED" | cut -f8)
+				D_TSK_zmb=$(echo "$TSK_FEED" | cut -f10)
+
+				# Get CPU usage info
+				CPU_FEED=$(echo "$(mpstat -P ALL | grep -A16 '\ball\b'\
+					| sed 's/[ \t]\+/\t/g')")
+				D_CPU_count=$(echo "$CPU_FEED" | wc -l)
+				D_CPU_all="$D_CPU_count"
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneCPU in $(echo "$CPU_FEED"); do
+					D_CPU_id=$(echo "$oneCPU" | cut -f3)
+					D_CPU_user=$(echo "$oneCPU" | cut -f4)
+					D_CPU_kernel=$(echo "$oneCPU" | cut -f6)
+					D_CPU_io=$(echo "$oneCPU" | cut -f7)
+					D_CPU_hw_interrupt=$(echo "$oneCPU" | cut -f8)
+					D_CPU_sw_interrupt=$(echo "$oneCPU" | cut -f9)
+					D_CPU_idle=$(echo "$oneCPU" | cut -f13)
+					D_CPU_all=$D_CPU_all$(echo -e "\u07")
+					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_hw_interrupt$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_sw_interrupt$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_idle
+				done
+				IFS=$OLDIFS
+
+				# Get memory usage info
+				MEM_FEED=$(free -tb | grep Total | sed 's/[ \t]\+/\t/g')
+				D_MEM_size=$(echo "$MEM_FEED" | cut -f2)
+				D_MEM_used=$(echo "$MEM_FEED" | cut -f3)
+				D_MEM_free=$(echo "$MEM_FEED" | cut -f4)
+
+				# Get filesystem usage info
+				FSY_FEED=$(sudo df -lBK --output=source,target,size,pcent\
+					| grep '^/dev' | sed 's/[ \t]\+/\t/g')
+				D_FSY_count=$(echo "$FSY_FEED" | wc -l)
+				D_FSY_all="$D_FSY_count"
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneFSY in $(echo "$FSY_FEED"); do
+					D_FSY_mount=$(echo "$oneFSY" | cut -f2)
+					D_FSY_size=$((\
+						$(echo "$oneFSY" | tr -d 'K' | cut -f3)\
+						* 1024\
+					))
+					D_FSY_used=$(echo "$oneFSY" | cut -f4)
+					D_FSY_all=$D_FSY_all$(echo -e "\u07")
+					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u06")
+					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u06")
+					D_FSY_all=$D_FSY_all$D_FSY_used
+				done
+				IFS=$OLDIFS
+
+				# Get temperature info
+				TMP_FEED=$(sensors "-Au"\
+					| grep '^[^:]\+$\|temp1_input:\|temp1_crit:'\
+					| sed 's/^\s\+//' | sed 's/[ \t]\+/\t/g')
+				D_TMP_=$(echo "$TMP_FEED" | cut -f1)
+				D_TMP_count=$(( $(echo "$TMP_FEED" | wc -l) / 3 ))
+				D_TMP_all="$D_TMP_count"
+				D_TMP_sensor=""
+				D_TMP_curTemp=""
+				D_TMP_maxTemp=""
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneTMP in $(echo "$TMP_FEED"); do
+					if [ ! -z "$(echo "$oneTMP" | grep 'temp1_input')" ]; then
+						D_TMP_curTemp="$(echo "$oneTMP"\
+							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
+					elif [ ! -z "$(echo "$oneTMP" | grep 'temp1_crit')" ]; then
+						D_TMP_maxTemp="$(echo "$oneTMP"\
+							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
+					else
+						D_TMP_sensor=$oneTMP
+					fi
+					if [ ! -z "$D_TMP_sensor" ] && [ ! -z "$D_TMP_curTemp" ]\
+							&& [ ! -z "$D_TMP_maxTemp" ]; then
+						if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
+							D_TMP_curTemp=$(bc <<< "($D_TMP_curTemp*9+160)/5")
+							D_TMP_maxTemp=$(bc <<< "($D_TMP_maxTemp*9+160)/5")
+						fi
+						D_TMP_all=$D_TMP_all$(echo -e "\u07")
+						D_TMP_all=$D_TMP_all$D_TMP_sensor$(echo -e "\u06")
+						D_TMP_all=$D_TMP_all$D_TMP_curTemp$(echo -e "\u06")
+						D_TMP_all=$D_TMP_all$D_TMP_maxTemp
+						D_TMP_sensor=""
+						D_TMP_curTemp=""
+						D_TMP_maxTemp=""
+					fi
+				done
+				IFS=$OLDIFS
+
+				# Fill out the data array
+				NEW_DATA="$D_host;$D_OS_ver;$D_OS_verShort;$D_COM_upDays;\
+$D_COM_upHours;$D_COM_upMins;$D_COM_users;$D_TSK_tot;$D_TSK_run;$D_TSK_slp;\
+$D_TSK_stp;$D_TSK_zmb;$D_CPU_all;$D_MEM_size;$D_MEM_used;$D_MEM_free;\
+$D_FSY_all;$D_TMP_all"
+
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -1342,23 +1609,29 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 
 			# If the drawing is old, redo it
 			if [ "$SIZE_FRESH" = 0 ]; then
+				# Expand the data into an array, handling string escapes
+				DATA_ESCAPED=${DATA// /$DISPLAY_ESCAPE_SPACE}
+				DATA_ARRAY=(${DATA_ESCAPED//;/' '})
+				for i in `seq 0 $((${#DATA_ARRAY[@]}-1))`; do
+					DATA_ARRAY[$i]=${DATA_ARRAY[$i]//$DISPLAY_ESCAPE_SPACE/ }
+				done
+
 				# Create an empty array of rows
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
 
-				# Expand the data into an array, handling string escapes
-				# Smallest heights (3-7): just show most relevant info
-				if [ "$CUR_ROWS" -lt 8 ]; then
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
 					NEW_DRAW[0]=" "
 
-				# Medium heights (8-19): add some formatting
-				elif [ "$CUR_ROWS" -lt 20 ]; then
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
 					# Row 0 has a heading
 					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
 $COLOR_ULINE_OFF]$COLOR_NORM"
 
-				# Largest heights (20+): the full Monty!
+				# Largest heights (26+): the full Monty!
 				else
 					# Rows 0-1 have a heading
 					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
@@ -1368,6 +1641,38 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 						NEW_DRAW[0]="$COLOR_GRAY System Stats $COLOR_NORM|"
 						NEW_DRAW[1]="--------------+"
 					fi
+
+					NEW_DRAW[2]=$COLOR_GRAY"Hostname:$COLOR_RESET ${DATA_ARRAY[0]}"
+					NEW_DRAW[3]=$COLOR_GRAY"OS:$COLOR_RESET ${DATA_ARRAY[1]}"
+					NEW_DRAW[4]=$COLOR_GRAY"OS short:$COLOR_RESET ${DATA_ARRAY[2]}"
+					NEW_DRAW[5]=$COLOR_GRAY"uptime days:$COLOR_RESET ${DATA_ARRAY[3]}"
+					NEW_DRAW[6]=$COLOR_GRAY"uptime hours:$COLOR_RESET ${DATA_ARRAY[4]}"
+					NEW_DRAW[7]=$COLOR_GRAY"uptime minutes:$COLOR_RESET ${DATA_ARRAY[5]}"
+					NEW_DRAW[8]=$COLOR_GRAY"users:$COLOR_RESET ${DATA_ARRAY[6]}"
+					NEW_DRAW[9]=$COLOR_GRAY"total tasks:$COLOR_RESET ${DATA_ARRAY[7]}"
+					NEW_DRAW[10]=$COLOR_GRAY"running tasks:$COLOR_RESET ${DATA_ARRAY[8]}"
+					NEW_DRAW[11]=$COLOR_GRAY"sleeping tasks:$COLOR_RESET ${DATA_ARRAY[9]}"
+					NEW_DRAW[12]=$COLOR_GRAY"stopped tasks:$COLOR_RESET ${DATA_ARRAY[10]}"
+					NEW_DRAW[13]=$COLOR_GRAY"zombie tasks:$COLOR_RESET ${DATA_ARRAY[11]}"
+					NEW_DRAW[14]=$COLOR_GRAY"CPU data:$COLOR_RESET ${DATA_ARRAY[12]}"
+#   id
+#   % user
+#   % kernel
+#   % io
+#   % hw_interrupt
+#   % sw_interrupt
+#   % idle
+					NEW_DRAW[15]=$COLOR_GRAY"memory size in bytes:$COLOR_RESET ${DATA_ARRAY[13]}"
+					NEW_DRAW[16]=$COLOR_GRAY"memory bytes in use:$COLOR_RESET ${DATA_ARRAY[14]}"
+					NEW_DRAW[17]=$COLOR_GRAY"memory bytes free:$COLOR_RESET ${DATA_ARRAY[15]}"
+					NEW_DRAW[18]=$COLOR_GRAY"filesystem data:$COLOR_RESET ${DATA_ARRAY[16]}"
+#   mount point
+#   size in bytes
+#   % in use
+					NEW_DRAW[19]=$COLOR_GRAY"temperature data:$COLOR_RESET ${DATA_ARRAY[17]}"
+#   sensor name
+#   current temperature
+#   max temperature
 				fi
 			fi
 		fi
