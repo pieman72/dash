@@ -1326,8 +1326,9 @@ ${DATA_ARRAY[9]}"mph"
 
 					# Row N-2 shows the name of the observatory
 					if [ "$CUR_ROWS" -gt 11 ]; then
-						NEW_DRAW[$((CUR_ROWS-2))]=$(center\
-							"From: ${DATA_ARRAY[11]}" $CUR_COLS)
+						NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
+							"[$COLOR_YELO${DATA_ARRAY[11]}$COLOR_RESET]"\
+							$CUR_COLS)" $CUR_COLS)
 					fi
 
 					# Row N-1 shows the update timestamp
@@ -1568,8 +1569,9 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 					fi
 
 					# Row N-2 shows the name of the observatory
-					NEW_DRAW[$((CUR_ROWS-2))]=$(center\
-						"From: ${DATA_ARRAY[11]}" $CUR_COLS)
+					NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
+						"[$COLOR_YELO${DATA_ARRAY[11]}$COLOR_RESET]"\
+						$CUR_COLS)" $CUR_COLS)
 
 					# Row N-1 shows the update timestamp
 					NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
@@ -1682,7 +1684,6 @@ $(echo "$oneCPU" | cut -f9)" | bc)
 				TMP_FEED=$(sensors "-Au"\
 					| grep '^[^:]\+$\|temp1_input:\|temp1_crit:'\
 					| sed 's/^\s\+//' | sed 's/[ \t]\+/\t/g')
-				D_TMP_=$(echo "$TMP_FEED" | cut -f1)
 				D_TMP_count=$(( $(echo "$TMP_FEED" | wc -l) / 3 ))
 				D_TMP_all="$D_TMP_count"
 				D_TMP_sensor=""
@@ -1717,11 +1718,39 @@ $(echo "$oneCPU" | cut -f9)" | bc)
 				done
 				IFS=$OLDIFS
 
+				# Get network info
+				IP_URL='http://ipecho.net/plain'
+				NWK_FEED=$(echo -e "Public\n"$(wget -qO- "$IP_URL");\
+					ifconfig | grep '^[^ \t]\|inet addr:' |\
+					sed 's/^.*inet addr:\([0-9\.]*\).*$/\1/' |\
+					sed 's/^\([^ \t]\+\)[ \t].*$/\1/' |\
+					sed 's/eth\([0-9]\+\)/Ethernet \1/' |\
+					sed 's/^lo$/Loopback/'
+				)
+				D_NWK_count=$(( $(echo "$NWK_FEED" | wc -l) / 2 ))
+				D_NWK_all="$D_NWK_count"
+				POS=0
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneNWK in $NWK_FEED; do
+					if [ "$POS" -eq 0 ]; then
+						D_NWK_ipName=$oneNWK
+						POS=1
+					else
+						D_NWK_ipAddress=$oneNWK
+						D_NWK_all=$D_NWK_all$(echo -e "\u07")
+						D_NWK_all=$D_NWK_all$D_NWK_ipName$(echo -e "\u06")
+						D_NWK_all=$D_NWK_all$D_NWK_ipAddress
+						POS=0
+					fi
+				done
+				IFS=$OLDIFS
+
 				# Fill out the data array
 				NEW_DATA="$D_host;$D_OS_ver;$D_OS_verShort;$D_COM_upDays;\
 $D_COM_upHours;$D_COM_upMins;$D_COM_users;$D_TSK_tot;$D_TSK_run;$D_TSK_slp;\
 $D_TSK_stp;$D_TSK_zmb;$D_CPU_all;$D_MEM_size;$D_MEM_used;$D_MEM_free;\
-$D_FSY_all;$D_TMP_all"
+$D_FSY_all;$D_TMP_all;$D_NWK_all"
 
 				DATA=$NEW_DATA
 			else
@@ -1746,11 +1775,23 @@ $D_FSY_all;$D_TMP_all"
 				if [ "$CUR_ROWS" -lt 11 ]; then
 					NEW_DRAW[0]=" "
 
+					# Row (n-1) shows an update timestamp
+					NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+						"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | Dash"\
+						$CUR_COLS)
+
 				# Medium heights (11-25): add some formatting
 				elif [ "$CUR_ROWS" -lt 26 ]; then
 					# Row 0 has a heading
 					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
 $COLOR_ULINE_OFF]$COLOR_NORM"
+
+					# Rows (n-2)-(n-1) show an update timestamp
+					NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+						"[$COLOR_RED${DATA_ARRAY[0]}$COLOR_RESET]" $CUR_COLS)
+					NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+						"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | Dash"\
+						$CUR_COLS)
 
 				# Largest heights (26+): the full Monty!
 				else
@@ -1878,7 +1919,8 @@ $COLOR_RESET
 					NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Mem Use"$COLOR_RESET" *" $CUR_COLS)
 					NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
-" $(fmt_mem "${DATA_ARRAY[13]}" 1)" $CUR_COLS)
+" $(fmt_mem "${DATA_ARRAY[13]}" 1)   "$COLOR_GRAY"Used:"$COLOR_RESET\
+" $(fmt_mem "${DATA_ARRAY[14]}" 1)" $CUR_COLS)
 					NEW_DRAW[((++j))]=$(percent_bar\
 						$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
 						$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
@@ -1989,7 +2031,29 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 					done
 					((++l))
 
-					# Rows (n-1)-n show an update timestamp
+					# Rows (l+1)-(m-1) show network info
+					m=$l
+					NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Network Addresses"$COLOR_RESET" *" $CUR_COLS)
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					NWK_DATA=(${DATA_ARRAY[18]})
+					IFS=$OLDIFS
+					for NWKno in `seq 1 ${NWK_DATA[0]}`; do
+						oneNWK=${NWK_DATA[$NWKno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneNWK)
+						IFS=$OLDIFS
+						((++m))
+						NEW_DRAW[$m]=$COLOR_GRAY$(extendl "$(truncate\
+							"${PARTS[0]}" 15)" 15)":$COLOR_RESET "$(extend\
+							"${PARTS[1]}" 15)
+						NEW_DRAW[$m]=$(center "${NEW_DRAW[$m]}" $CUR_COLS)
+					done
+					((++m))
+
+					# Rows (n-2)-(n-1) show an update timestamp
 					NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
 						"[$COLOR_RED${DATA_ARRAY[0]}$COLOR_RESET]" $CUR_COLS)
 					NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
@@ -2010,8 +2074,10 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 #**spacer**		1	1	1
 #temperature	2	3	5
 #**spacer**		1	1	1
-#timestamp		1	2	2
-#				31	41	62
+#network		2	4	6
+#**spacer**		1	1	1
+#footer			1	2	2
+#				34	46	69
 			fi
 		fi
 
