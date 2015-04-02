@@ -1792,58 +1792,65 @@ $COLOR_NORM"|"
 
 				# Rows (f+1)-(g-1) show general information
 				g=$f
-				NEW_DRAW[((++g))]=$(center\
-					"* "$COLOR_GRAY$COLOR_ULINE"General"$COLOR_RESET" *"\
-					$CUR_COLS)
-				NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
+				if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++g))]=$(center\
+						"* "$COLOR_GRAY$COLOR_ULINE"General"$COLOR_RESET" *"\
+						$CUR_COLS)
+					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
 ${DATA_ARRAY[1]}"
-				NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
+					if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
+						NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
 ${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hrs, ${DATA_ARRAY[5]} Mins"
-				NEW_DRAW[((++g))]=$COLOR_GRAY"Users online:$COLOR_RESET \
-${DATA_ARRAY[6]}"
-				((++g))
+						NEW_DRAW[((++g))]=$COLOR_GRAY"Users online:\
+$COLOR_RESET ${DATA_ARRAY[6]}"
+					fi
+					((++g))
+				fi
 
 				# Rows (g+1)-(h-1) show task information
 				h=$g
-				NEW_DRAW[((++h))]=$(center "* "$COLOR_GRAY$COLOR_ULINE"Tasks"\
-$COLOR_RESET" *" $CUR_COLS)
-				NEW_DRAW[((++h))]=$COLOR_GRAY"Total:$COLOR_RESET $(extend\
-					"${DATA_ARRAY[7]}" 5) ["
-				BAR_WIDTH=$(( CUR_COLS-15 ))
-				RUN_WIDTH=$(( DATA_ARRAY[8] / BAR_WIDTH +\
-					(DATA_ARRAY[8]?1:0)))
-				STP_WIDTH=$(( DATA_ARRAY[10] / BAR_WIDTH +\
-					(DATA_ARRAY[10]?1:0)))
-				ZMB_WIDTH=$(( DATA_ARRAY[11] / BAR_WIDTH +\
-					(DATA_ARRAY[11]?1:0)))
-				SLP_WIDTH=$(( BAR_WIDTH-(RUN_WIDTH+STP_WIDTH+ZMB_WIDTH) ))
-				NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GREN$(randomize "="\
-					$RUN_WIDTH)
-				NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_BLUE$(randomize "="\
-					$SLP_WIDTH)
-				NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_RED2$(randomize "="\
-					$STP_WIDTH)
-				NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GRAY$(randomize "="\
-					$ZMB_WIDTH)
-				NEW_DRAW[$h]=${NEW_DRAW[$h]}"]"
-				NEW_DRAW[((++h))]=""
-				NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GREN \
+				if [ "$h" -lt "$(( CUR_ROWS-6 ))" ]; then
+					NEW_DRAW[((++h))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Tasks"$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[((++h))]=$COLOR_GRAY"Total:$COLOR_RESET $(extend\
+						"${DATA_ARRAY[7]}" 5) ["
+					BAR_WIDTH=$(( CUR_COLS-15 ))
+					RUN_WIDTH=$(( DATA_ARRAY[8] / BAR_WIDTH +\
+						(DATA_ARRAY[8]?1:0)))
+					STP_WIDTH=$(( DATA_ARRAY[10] / BAR_WIDTH +\
+						(DATA_ARRAY[10]?1:0)))
+					ZMB_WIDTH=$(( DATA_ARRAY[11] / BAR_WIDTH +\
+						(DATA_ARRAY[11]?1:0)))
+					SLP_WIDTH=$(( BAR_WIDTH-(RUN_WIDTH+STP_WIDTH+ZMB_WIDTH) ))
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GREN$(randomize "="\
+						$RUN_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_BLUE$(randomize "="\
+						$SLP_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_RED2$(randomize "="\
+						$STP_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GRAY$(randomize "="\
+						$ZMB_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}"]"
+					NEW_DRAW[((++h))]=""
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GREN \
 $COLOR_BG_NORM$COLOR_GRAY""Run:$COLOR_NORM "$(( DATA_ARRAY[8] ))"  "
-				NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_BLUE \
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_BLUE \
 $COLOR_BG_NORM$COLOR_GRAY""Slp:$COLOR_NORM "$(( DATA_ARRAY[9] ))"  "
-				NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_RED2 \
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_RED2 \
 $COLOR_BG_NORM$COLOR_GRAY""Stp:$COLOR_NORM "$(( DATA_ARRAY[10] ))"  "
-				NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GRAY \
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GRAY \
 $COLOR_BG_NORM$COLOR_GRAY""Zmb:$COLOR_NORM "$(( DATA_ARRAY[11] ))
-				NEW_DRAW[$h]="$(center "${NEW_DRAW[$h]}" $CUR_COLS)"
-				((++h))
+					NEW_DRAW[$h]="$(center "${NEW_DRAW[$h]}" $CUR_COLS)"
+					((++h))
+				fi
 
 				# Rows (h+1)-(i-1) show CPU info
 				i=$h
-				NEW_DRAW[((++i))]=$(center "* "$COLOR_GRAY$COLOR_ULINE"CPU"\
-$COLOR_RESET" *" $CUR_COLS)
-				CELL_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/15 + 6 ))
-				NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+				if [ "$i" -lt "$(( CUR_ROWS-9 ))" ]; then
+					NEW_DRAW[((++i))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"CPU"$COLOR_RESET" *" $CUR_COLS)
+					CELL_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/15 + 6 ))
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
 $(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
@@ -1851,50 +1858,50 @@ $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_TR\
 $COLOR_RESET
-				NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-				NEW_DRAW[((++i))]=$VBAR$COLOR_GRAY"CPU"$COLOR_RESET$VBAR\
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					NEW_DRAW[((++i))]=$VBAR$COLOR_GRAY"CPU"$COLOR_RESET$VBAR\
 $(centerex $COLOR_GRAY"User"$COLOR_RESET $CELL_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"Kernel"$COLOR_RESET $CELL_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"I/O"$COLOR_RESET $CELL_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"Intrpt"$COLOR_RESET $CELL_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"Idle"$COLOR_RESET $CELL_WIDTH)$VBAR
-				NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-				NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
 $(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
-				NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-				CPU_DATA=${DATA_ARRAY[12]}
-				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
-				CPU_DATA=($CPU_DATA)
-				IFS=$OLDIFS
-				for j in `seq 1 ${CPU_DATA[0]}`; do
-					oneCPU=${CPU_DATA[$j]}
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
-					PARTS=($oneCPU)
-					IFS=$OLDIFS
-					NEW_DRAW[$i]=$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex\
-						"${PARTS[0]}" 3)$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-						"${PARTS[1]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-						"${PARTS[2]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-						"${PARTS[3]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-						"${PARTS[4]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-					NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-						"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
 					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-					((++i))
-				done
-				NEW_DRAW[$i]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+					CPU_DATA=${DATA_ARRAY[12]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					CPU_DATA=($CPU_DATA)
+					IFS=$OLDIFS
+					for j in `seq 1 ${CPU_DATA[0]}`; do
+						oneCPU=${CPU_DATA[$j]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneCPU)
+						IFS=$OLDIFS
+						NEW_DRAW[((++i))]=$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex\
+							"${PARTS[0]}" 3)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[1]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[2]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[3]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[4]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+						if [ "$i" -eq "$((CUR_ROWS-5))" ]; then break; fi
+					done
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
 $(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
@@ -1902,147 +1909,159 @@ $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_BR\
 $COLOR_RESET
-				NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-				((++i))
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					((++i))
+				fi
 
 				# Rows (i+1)-(j-1) show memory usage
 				j=$i
-				NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+				if [ "$j" -lt "$(( CUR_ROWS-6 ))" ]; then
+					NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Mem Use"$COLOR_RESET" *" $CUR_COLS)
-				NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
+					NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
 " $(fmt_mem "${DATA_ARRAY[13]}" 1)   "$COLOR_GRAY"Used:"$COLOR_RESET\
 " $(fmt_mem "${DATA_ARRAY[14]}" 1)" $CUR_COLS)
-				NEW_DRAW[((++j))]=$(percent_bar\
-					$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
-					$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
-				NEW_DRAW[$j]=$(center "${NEW_DRAW[$j]}" $CUR_COLS)
-				((++j))
+					NEW_DRAW[((++j))]=$(percent_bar\
+						$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
+						$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
+					NEW_DRAW[$j]=$(center "${NEW_DRAW[$j]}" $CUR_COLS)
+					((++j))
+				fi
 
 				# Rows (j+1)-(k-1) show filesystem usage
 				k=$j
-				NEW_DRAW[((++k))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+				if [ "$k" -lt "$(( CUR_ROWS-9 ))" ]; then
+					NEW_DRAW[((++k))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Filesystems"$COLOR_RESET" *" $CUR_COLS)
-				MOUNT_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/12 + 18 ))
-				SIZE_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/18 + 8 ))
-				BAR_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/9 + 10 ))
-				NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+					MOUNT_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/12 + 18 ))
+					SIZE_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/18 + 8 ))
+					BAR_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/9 + 10 ))
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
 $(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_T\
 $(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_TR$COLOR_RESET
-				NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-				NEW_DRAW[((++k))]=$VBAR\
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]=$VBAR\
 $(extend $COLOR_GRAY" Mount"$COLOR_RESET $MOUNT_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"Capacity"$COLOR_RESET $SIZE_WIDTH)$VBAR\
 $(centerex $COLOR_GRAY"Usage"$COLOR_RESET $BAR_WIDTH)$VBAR
-				NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-				NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
 $(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_C\
 $(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
-				NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-				FSY_DATA=${DATA_ARRAY[16]}
-				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
-				FSY_DATA=($FSY_DATA)
-				IFS=$OLDIFS
-				for FSYno in `seq 1 ${FSY_DATA[0]}`; do
-					oneFSY=${FSY_DATA[$FSYno]}
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
-					PARTS=($oneFSY)
-					IFS=$OLDIFS
-					NEW_DRAW[((++k))]=$VBAR
-					NEW_DRAW[$k]=${NEW_DRAW[$k]}$(truncate "$(extend\
-						" ${PARTS[0]}" $MOUNT_WIDTH)" $MOUNT_WIDTH)$VBAR
-					NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex "$(extendl\
-						"$(fmt_mem ${PARTS[1]} 1)" 8)" $SIZE_WIDTH)$VBAR
-					NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex\
-						"$(percent_bar\
-							"${PARTS[2]}" $BAR_WIDTH\
-							$COLOR_ORNG $COLOR_BG_ORNG\
-						)"\
-						$BAR_WIDTH\
-					)$VBAR
 					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-				done
-				NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+					FSY_DATA=${DATA_ARRAY[16]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					FSY_DATA=($FSY_DATA)
+					IFS=$OLDIFS
+					for FSYno in `seq 1 ${FSY_DATA[0]}`; do
+						oneFSY=${FSY_DATA[$FSYno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneFSY)
+						IFS=$OLDIFS
+						NEW_DRAW[((++k))]=$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(truncate "$(extend\
+							" ${PARTS[0]}" $MOUNT_WIDTH)" $MOUNT_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex "$(extendl\
+							"$(fmt_mem ${PARTS[1]} 1)" 8)" $SIZE_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex\
+							"$(percent_bar\
+								"${PARTS[2]}" $BAR_WIDTH\
+								$COLOR_ORNG $COLOR_BG_ORNG\
+							)"\
+							$BAR_WIDTH\
+						)$VBAR
+						NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+						if [ "$k" -eq "$((CUR_ROWS-5))" ]; then break; fi
+					done
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
 $(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_B\
 $(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_BR$COLOR_RESET
-				NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-				((++k))
-
-				# Rows (k+1)-(l-1) show filesystem usage
-				l=$k
-				NEW_DRAW[((++l))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Temperature"$COLOR_RESET" *" $CUR_COLS)
-				SEG_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)*3/56 + 3 ))
-				BAR_WIDTH=$(( SEG_WIDTH*7 ))
-				if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
-					MIN_TEMP="32"
-				else
-					MIN_TEMP="0"
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					((++k))
 				fi
-				COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2"\
-					"$COLOR_HEAT_3" "$COLOR_HEAT_4" "$COLOR_HEAT_5"\
-					"$COLOR_HEAT_6")
-				BGCOLORS=("$COLOR_BG_HEAT_0" "$COLOR_BG_HEAT_1"\
-					"$COLOR_BG_HEAT_2" "$COLOR_BG_HEAT_3"\
-					"$COLOR_BG_HEAT_4" "$COLOR_BG_HEAT_5"\
-					"$COLOR_BG_HEAT_6")
-				TMP_DATA=${DATA_ARRAY[17]}
-				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
-				TMP_DATA=($TMP_DATA)
-				IFS=$OLDIFS
-				for TMPno in `seq 1 ${TMP_DATA[0]}`; do
-					oneTMP=${TMP_DATA[$TMPno]}
+
+				# Rows (k+1)-(l-1) show temperature info
+				l=$k
+				if [ "$l" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++l))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Temperature"$COLOR_RESET" *" $CUR_COLS)
+					SEG_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)*3/56 + 3 ))
+					BAR_WIDTH=$(( SEG_WIDTH*7 ))
+					if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
+						MIN_TEMP="32"
+					else
+						MIN_TEMP="0"
+					fi
+					COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2"\
+						"$COLOR_HEAT_3" "$COLOR_HEAT_4" "$COLOR_HEAT_5"\
+						"$COLOR_HEAT_6")
+					BGCOLORS=("$COLOR_BG_HEAT_0" "$COLOR_BG_HEAT_1"\
+						"$COLOR_BG_HEAT_2" "$COLOR_BG_HEAT_3"\
+						"$COLOR_BG_HEAT_4" "$COLOR_BG_HEAT_5"\
+						"$COLOR_BG_HEAT_6")
+					TMP_DATA=${DATA_ARRAY[17]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
-					PARTS=($oneTMP)
+					IFS=$(echo -e "\u07")
+					TMP_DATA=($TMP_DATA)
 					IFS=$OLDIFS
-					((++l))
-					NEW_DRAW[$l]=$(truncate "${PARTS[0]}"\
-						$(( CUR_COLS-(SEG_WIDTH*7+10) )))" "\
+					for TMPno in `seq 1 ${TMP_DATA[0]}`; do
+						oneTMP=${TMP_DATA[$TMPno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneTMP)
+						IFS=$OLDIFS
+						((++l))
+						NEW_DRAW[$l]=$(truncate "${PARTS[0]}"\
+							$(( CUR_COLS-(SEG_WIDTH*7+10) )))" "\
 $(printf "%2d" "$MIN_TEMP")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
-					for POS in `seq 0 $(( BAR_WIDTH-1 ))`; do
-						if [ "$POS" -eq "$(( BAR_WIDTH *\
-								(PARTS[1]-MIN_TEMP) / (PARTS[2]-MIN_TEMP)\
-								))" ]; then
-							NEW_DRAW[$l]=${NEW_DRAW[$l]}${BGCOLORS[$((\
-								POS*7/BAR_WIDTH ))]}" "$COLOR_BG_NORM
-						else
-							NEW_DRAW[$l]=${NEW_DRAW[$l]}${COLORS[$((\
-								POS*7/BAR_WIDTH ))]}"-"$COLOR_NORM
-						fi
-					done
-					NEW_DRAW[$l]=${NEW_DRAW[$l]}\
+						for POS in `seq 0 $(( BAR_WIDTH-1 ))`; do
+							if [ "$POS" -eq "$(( BAR_WIDTH *\
+									(PARTS[1]-MIN_TEMP) / (PARTS[2]-MIN_TEMP)\
+									))" ]; then
+								NEW_DRAW[$l]=${NEW_DRAW[$l]}${BGCOLORS[$((\
+									POS*7/BAR_WIDTH ))]}" "$COLOR_BG_NORM
+							else
+								NEW_DRAW[$l]=${NEW_DRAW[$l]}${COLORS[$((\
+									POS*7/BAR_WIDTH ))]}"-"$COLOR_NORM
+							fi
+						done
+						NEW_DRAW[$l]=${NEW_DRAW[$l]}\
 $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
-					NEW_DRAW[$l]=$(center "${NEW_DRAW[$l]}" $CUR_COLS)
-				done
-				((++l))
+						NEW_DRAW[$l]=$(center "${NEW_DRAW[$l]}" $CUR_COLS)
+						if [ "$l" -eq "$(( CUR_ROWS-4))" ]; then break; fi
+					done
+					((++l))
+				fi
 
 				# Rows (l+1)-(m-1) show network info
 				m=$l
-				NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+				if [ "$m" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Network Addresses"$COLOR_RESET" *" $CUR_COLS)
-				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
-				NWK_DATA=(${DATA_ARRAY[18]})
-				IFS=$OLDIFS
-				for NWKno in `seq 1 ${NWK_DATA[0]}`; do
-					oneNWK=${NWK_DATA[$NWKno]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
-					PARTS=($oneNWK)
+					IFS=$(echo -e "\u07")
+					NWK_DATA=(${DATA_ARRAY[18]})
 					IFS=$OLDIFS
+					for NWKno in `seq 1 ${NWK_DATA[0]}`; do
+						oneNWK=${NWK_DATA[$NWKno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneNWK)
+						IFS=$OLDIFS
+						((++m))
+						NEW_DRAW[$m]=$COLOR_GRAY$(extendl "$(truncate\
+							"${PARTS[0]}" 15)" 15)":$COLOR_RESET "$(extend\
+							"${PARTS[1]}" 15)
+						NEW_DRAW[$m]=$(center "${NEW_DRAW[$m]}" $CUR_COLS)
+						if [ "$m" -eq "$(( CUR_ROWS-4))" ]; then break; fi
+					done
 					((++m))
-					NEW_DRAW[$m]=$COLOR_GRAY$(extendl "$(truncate\
-						"${PARTS[0]}" 15)" 15)":$COLOR_RESET "$(extend\
-						"${PARTS[1]}" 15)
-					NEW_DRAW[$m]=$(center "${NEW_DRAW[$m]}" $CUR_COLS)
-				done
-				((++m))
+				fi
 
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
@@ -2050,25 +2069,6 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
 					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | Dash"\
 					$CUR_COLS)
-
-#				min	nrm	max
-#heading		2	2	2
-#general		2	4	4
-#**spacer**		1	1	1
-#tasks			3	3	3
-#**spacer**		1	1	1
-#cpu			6	10	22
-#**spacer**		1	1	1
-#mem use		3	3	3
-#**spacer**		1	1	1
-#filesystems	6	8	15
-#**spacer**		1	1	1
-#temperature	2	3	5
-#**spacer**		1	1	1
-#network		2	4	6
-#**spacer**		1	1	1
-#footer			1	2	2
-#				34	46	69
 			fi
 		fi
 
