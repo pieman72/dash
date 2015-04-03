@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Dash basic configuration
+# Initialization
+STARTED=0
+TRAPS_SET=0
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
 [ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="~/.dash.ini"
 if [ -f "$DASH_INI_PATH" ]; then
@@ -12,8 +14,14 @@ if [ -f "$DASH_INI_PATH" ]; then
 else
 	function load_config(){ echo $2; }
 fi
+
+# Dash basic configuration
 DBG=$(load_config "DBG" '0')
 REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '120')
+SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
+SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
+
+# Display configuration
 DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
 DISPLAY_COLOR_PALETTE=$(load_config "DISPLAY_COLOR_PALETTE" '16')
 DISPLAY_ESCAPE_SPACE='`'
@@ -42,11 +50,8 @@ else
 	DISPLAY_SEPARATOR_BL=$(load_config "DISPLAY_SEPARATOR_BL" '+')
 	DISPLAY_SEPARATOR_BR=$(load_config "DISPLAY_SEPARATOR_BR" '+')
 fi
-SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
-SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
-STARTED=0
 
-# Color palettes
+# Color palette configuration
 if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_RESET="[0;39;49m"
 	COLOR_BOLD="[1m"
@@ -200,7 +205,9 @@ function msg(){
 function error(){
 	echo -e "$COLOR_RESET$COLOR_GRAY[Dash] $COLOR_RED""Error:$COLOR_NORM $1\n"\
 		>&2
-	read -p "$(echo -e '[Press ENTER to exit]\n\b')" TMP
+	if [ "$TRAPS_SET" -eq "1" ]; then
+		read -p "$(echo -e '[Press ENTER to exit]\n\b')" TMP
+	fi
 	if [[ -z "$2" ]]; then exit 1; fi; exit "$2"
 }
 function handleWindowChange(){
@@ -214,7 +221,7 @@ function handleExit(){
 	tput rmcup
 }
 
-# Output formatting
+# Output formatting functions
 function center(){
 	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
 	if [ "$LEN" -lt "$2" ]; then
@@ -416,19 +423,19 @@ if [ "$#" -lt 1 ]; then SHOW_HELP=1; fi
 SECT_LIST=''
 SHOW_CALENDAR=0
 SHOW_EMAIL=0
+SHOW_MATRIX=0
 SHOW_NEWS=0
-SHOW_SNAKE=0
 SHOW_WEATHER=0
 SHOW_STATS=0
-while getopt -Q -q -o 'HCENSWYd:' -n 'dash' -- $@; do
+while getopt -Q -q -o 'HCEMNSWd:' -n 'dash' -- $@; do
 	case "$1" in
 		-H) SHOW_HELP=1;     SECT_LIST+='H'; shift ;;
 		-C) SHOW_CALENDAR=1; SECT_LIST+='C'; shift ;;
 		-E) SHOW_EMAIL=1;    SECT_LIST+='E'; shift ;;
+		-M) SHOW_MATRIX=1;   SECT_LIST+='M'; shift ;;
 		-N) SHOW_NEWS=1;     SECT_LIST+='N'; shift ;;
-		-S) SHOW_SNAKE=1;    SECT_LIST+='S'; shift ;;
+		-S) SHOW_STATS=1;    SECT_LIST+='S'; shift ;;
 		-W) SHOW_WEATHER=1;  SECT_LIST+='W'; shift ;;
-		-Y) SHOW_STATS=1;    SECT_LIST+='Y'; shift ;;
 		-d) DBG=1; shift ;;
 		""|--) shift; break ;;
 		*) error "Unrecognized option $1" ;;
@@ -454,15 +461,15 @@ sections will be shown.\n\n\
 credentials).\n\n\
 \t[1m-H[0m\n\
 \t\tOuput these instructions, and exit.\n\n\
+\t[1m-M[0m\n\
+\t\tInclude the matrix in the output\n\n\
 \t[1m-N[0m\n\
 \t\tInclude a news digest in the output.\n\n\
 \t[1m-S[0m\n\
-\t\tInclude snake!\n\n\
-\t[1m-W[0m\n\
-\t\tInclude a weather forecast in the output.\n\n\
-\t[1m-Y[0m\n\
 \t\tInclude system stats in the output (output may be reduced if run without \
-privileges).\n"
+privileges).\n\n\
+\t[1m-W[0m\n\
+\t\tInclude a weather forecast in the output.\n\n"
 	exit
 fi
 
@@ -480,11 +487,21 @@ if [ "$SHOW_EMAIL" = 1 ]; then
 	read -p "Password: " -s EMAIL_PASS
 	echo ""
 fi
+if [ "$SHOW_MATRIX" = 1 ]; then
+	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "10")
+fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
 fi
-if [ "$SHOW_SNAKE" = 1 ]; then
-	SNAKE_SECONDS_PER_POLL=$(load_config "SNAKE_SECONDS_PER_POLL" "10")
+if [ "$SHOW_STATS" = 1 ]; then
+	# Get INI values
+	STATS_SECONDS_PER_POLL=$(load_config "STATS_SECONDS_PER_POLL" "60")
+	STATS_TEMPERATURE_UNITS=$(load_config "STATS_TEMPERATURE_UNITS" "F")
+	if [ "$DISPLAY_ENCODING" == 'UTF8' ]; then
+		STATS_DEGREE_SYMBOL="°"
+	else
+		STATS_DEGREE_SYMBOL="'"
+	fi
 fi
 if [ "$SHOW_WEATHER" = 1 ]; then
 	# Get INI values
@@ -503,16 +520,6 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 		WEATHER_DEGREE_SYMBOL="'"
 	fi
 fi
-if [ "$SHOW_STATS" = 1 ]; then
-	# Get INI values
-	STATS_SECONDS_PER_POLL=$(load_config "STATS_SECONDS_PER_POLL" "60")
-	STATS_TEMPERATURE_UNITS=$(load_config "STATS_TEMPERATURE_UNITS" "F")
-	if [ "$DISPLAY_ENCODING" == 'UTF8' ]; then
-		STATS_DEGREE_SYMBOL="°"
-	else
-		STATS_DEGREE_SYMBOL="'"
-	fi
-fi
 
 # Save the old screen, block input echo, and set signal traps
 tput smcup
@@ -520,6 +527,7 @@ stty -echo
 trap handleWindowChange WINCH
 trap handleInterrupt INT
 trap handleExit EXIT
+TRAPS_SET=1
 
 # Handle the actual rendering of dash sections
 function render_sections(){
@@ -625,14 +633,14 @@ function render_sections(){
 			SECONDS_PER_POLL=$CALENDAR_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'E' ]; then
 			SECONDS_PER_POLL=$EMAIL_SECONDS_PER_POLL
+		elif [ "$CUR_SECT" == 'M' ]; then
+			SECONDS_PER_POLL=$MATRIX_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'N' ]; then
 			SECONDS_PER_POLL=$NEWS_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'S' ]; then
-			SECONDS_PER_POLL=$SNAKE_SECONDS_PER_POLL
+			SECONDS_PER_POLL=$STATS_SECONDS_PER_POLL
 		elif [ "$CUR_SECT" == 'W' ]; then
 			SECONDS_PER_POLL=$WEATHER_SECONDS_PER_POLL
-		elif [ "$CUR_SECT" == 'Y' ]; then
-			SECONDS_PER_POLL=$STATS_SECONDS_PER_POLL
 		fi
 
 		# Check any previous data
@@ -976,6 +984,53 @@ $SOURCE_STRING" $CUR_COLS)
 			fi
 		fi
 
+		# --- Matrix ----------------------------------------
+		if [ "$CUR_SECT" == 'M' ]; then
+			# If the data is old, fetch new data, otherwise use the old data
+			if [ "$DATA_FRESH" = 0 ]; then
+				NEW_DATA="---"
+				DATA=$NEW_DATA
+			else
+				DATA=$OLD_DATA
+			fi
+
+			# If the drawing is old, redo it
+			if [ "$SIZE_FRESH" = 0 ]; then
+				# Expand the data into an array
+				OLDIFS=$IFS
+				IFS=";"
+				DATA_ARRAY=($DATA)
+				IFS=$OLDIFS
+
+				# Create an empty array of rows
+				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
+					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
+				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Smallest heights (3-10): just show most relevant info
+				if [ "$CUR_ROWS" -lt 11 ]; then
+					NEW_DRAW[0]=" "
+
+				# Medium heights (11-25): add some formatting
+				elif [ "$CUR_ROWS" -lt 26 ]; then
+					# Row 0 has a heading
+					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Matrix\
+$COLOR_ULINE_OFF]$COLOR_NORM"
+
+				# Largest heights (26+): the full Monty!
+				else
+					# Rows 0-1 have a heading
+					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+						NEW_DRAW[0]="$COLOR_GRAY Matrix $COLOR_NORM│"
+						NEW_DRAW[1]="───────────────┘"
+					else
+						NEW_DRAW[0]="$COLOR_GRAY Matrix $COLOR_NORM|"
+						NEW_DRAW[1]="---------------+"
+					fi
+				fi
+			fi
+		fi
+
 		# --- News ------------------------------------------
 		if [ "$CUR_SECT" == 'N' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
@@ -1023,11 +1078,175 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 			fi
 		fi
 
-		# --- Snake -----------------------------------------
+		# --- System Stats ----------------------------------
 		if [ "$CUR_SECT" == 'S' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
 			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA="---"
+				NEW_DATA=""
+
+				# Get the hostname
+				D_host=$(hostname)
+
+				# Get OS info
+				OS_INFO=$(lsb_release -a 2>&1)
+				D_OS_id=$(grep -oPm1 "(?<=Distributor ID:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				D_OS_rel=$(grep -oPm1 "(?<=Release:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				D_OS_code=$(grep -oPm1 "(?<=Codename:).*"\
+					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
+				if [ "$D_OS_id" == "Ubuntu" ]; then
+					D_OS_verShort="$D_OS_id $D_OS_rel"
+					D_OS_ver="$D_OS_id $(grep -oPm1 "(?<=VERSION=\")[^\"]*"\
+						<<< "$(cat /etc/*-release)" | head -n1)"
+				else
+					D_OS_verShort="$D_OS_id $D_OS_rel"
+					D_OS_ver="$D_OS_id$D_OS_rel, $D_OS_code"
+				fi
+
+				# Get system operation info
+				TOP=$(top bsn1 | head -n2 | sed 's/[ \t]\+/\t/g')
+				COM_FEED=$(echo "$TOP" | head -n1)
+				D_COM_upDays=$(echo "$COM_FEED" | cut -f5)
+				D_COM_upHours=$(echo "$COM_FEED" | cut -f7\
+					| sed 's/^\([0-9]\+\):[0-9]\+,$/\1/')
+				D_COM_upMins=$(echo "$COM_FEED" | cut -f7\
+					| sed 's/^[0-9]\+:\([0-9]\+\),$/\1/')
+				D_COM_users=$(echo "$COM_FEED" | cut -f8)
+
+				# Get task info
+				TSK_FEED=$(echo "$TOP" | tail -n1)
+				D_TSK_tot=$(echo "$TSK_FEED" | cut -f2)
+				D_TSK_run=$(echo "$TSK_FEED" | cut -f4)
+				D_TSK_slp=$(echo "$TSK_FEED" | cut -f6)
+				D_TSK_stp=$(echo "$TSK_FEED" | cut -f8)
+				D_TSK_zmb=$(echo "$TSK_FEED" | cut -f10)
+
+				# Get CPU usage info
+				CPU_FEED=$(echo "$(mpstat -P ALL | grep -A16 '\ball\b'\
+					| sed 's/[ \t]\+/\t/g')")
+				D_CPU_count=$(echo "$CPU_FEED" | wc -l)
+				D_CPU_all="$D_CPU_count"
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneCPU in $(echo "$CPU_FEED"); do
+					D_CPU_id=$(echo "$oneCPU" | cut -f3)
+					D_CPU_user=$(echo "$oneCPU" | cut -f4)
+					D_CPU_kernel=$(echo "$oneCPU" | cut -f6)
+					D_CPU_io=$(echo "$oneCPU" | cut -f7)
+					D_CPU_interrupt=$(echo "$(echo "$oneCPU" | cut -f8)+\
+$(echo "$oneCPU" | cut -f9)" | bc)
+					D_CPU_idle=$(echo "$oneCPU" | cut -f13)
+					D_CPU_all=$D_CPU_all$(echo -e "\u07")
+					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_interrupt$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$D_CPU_idle
+				done
+				IFS=$OLDIFS
+
+				# Get memory usage info
+				MEM_FEED=$(free -tb | grep Total | sed 's/[ \t]\+/\t/g')
+				D_MEM_size=$(echo "$MEM_FEED" | cut -f2)
+				D_MEM_used=$(echo "$MEM_FEED" | cut -f3)
+				D_MEM_free=$(echo "$MEM_FEED" | cut -f4)
+
+				# Get filesystem usage info
+				FSY_FEED=$(sudo df -lBK --output=source,target,size,pcent\
+					| grep '^/dev' | sed 's/[ \t]\+/\t/g')
+				D_FSY_count=$(echo "$FSY_FEED" | wc -l)
+				D_FSY_all="$D_FSY_count"
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneFSY in $(echo "$FSY_FEED"); do
+					D_FSY_mount=$(echo "$oneFSY" | cut -f2)
+					D_FSY_size=$((\
+						$(echo "$oneFSY" | tr -d 'K' | cut -f3)\
+						* 1024\
+					))
+					D_FSY_used=$(echo "$oneFSY" | cut -f4 | tr -d "%"\
+						| sed 's/^\(.*\)$/scale=4;\1\/100/' | bc)
+					D_FSY_all=$D_FSY_all$(echo -e "\u07")
+					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u06")
+					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u06")
+					D_FSY_all=$D_FSY_all$D_FSY_used
+				done
+				IFS=$OLDIFS
+
+				# Get temperature info
+				TMP_FEED=$(sensors "-Au"\
+					| grep '^[^:]\+$\|temp1_input:\|temp1_crit:'\
+					| sed 's/^\s\+//' | sed 's/[ \t]\+/\t/g')
+				D_TMP_count=$(( $(echo "$TMP_FEED" | wc -l) / 3 ))
+				D_TMP_all="$D_TMP_count"
+				D_TMP_sensor=""
+				D_TMP_curTemp=""
+				D_TMP_maxTemp=""
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneTMP in $(echo "$TMP_FEED"); do
+					if [ ! -z "$(echo "$oneTMP" | grep 'temp1_input')" ]; then
+						D_TMP_curTemp="$(echo "$oneTMP"\
+							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
+					elif [ ! -z "$(echo "$oneTMP" | grep 'temp1_crit')" ]; then
+						D_TMP_maxTemp="$(echo "$oneTMP"\
+							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
+					else
+						D_TMP_sensor=$oneTMP
+					fi
+					if [ ! -z "$D_TMP_sensor" ] && [ ! -z "$D_TMP_curTemp" ]\
+							&& [ ! -z "$D_TMP_maxTemp" ]; then
+						if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
+							D_TMP_curTemp=$(bc <<< "($D_TMP_curTemp*9+160)/5")
+							D_TMP_maxTemp=$(bc <<< "($D_TMP_maxTemp*9+160)/5")
+						fi
+						D_TMP_all=$D_TMP_all$(echo -e "\u07")
+						D_TMP_all=$D_TMP_all$D_TMP_sensor$(echo -e "\u06")
+						D_TMP_all=$D_TMP_all$D_TMP_curTemp$(echo -e "\u06")
+						D_TMP_all=$D_TMP_all$D_TMP_maxTemp
+						D_TMP_sensor=""
+						D_TMP_curTemp=""
+						D_TMP_maxTemp=""
+					fi
+				done
+				IFS=$OLDIFS
+
+				# Get network info
+				IP_URL='http://ipecho.net/plain'
+				NWK_FEED=$(echo -e "Public\n"$(wget -qO- "$IP_URL");\
+					ifconfig | grep '^[^ \t]\|inet addr:' |\
+					sed 's/^.*inet addr:\([0-9\.]*\).*$/\1/' |\
+					sed 's/^\([^ \t]\+\)[ \t].*$/\1/' |\
+					sed 's/eth\([0-9]\+\)/Ethernet \1/' |\
+					sed 's/^lo$/Loopback/'
+				)
+				D_NWK_count=$(( $(echo "$NWK_FEED" | wc -l) / 2 ))
+				D_NWK_all="$D_NWK_count"
+				POS=0
+				OLDIFS=$IFS
+				IFS=$'\n'
+				for oneNWK in $NWK_FEED; do
+					if [ "$POS" -eq 0 ]; then
+						D_NWK_ipName=$oneNWK
+						POS=1
+					else
+						D_NWK_ipAddress=$oneNWK
+						D_NWK_all=$D_NWK_all$(echo -e "\u07")
+						D_NWK_all=$D_NWK_all$D_NWK_ipName$(echo -e "\u06")
+						D_NWK_all=$D_NWK_all$D_NWK_ipAddress
+						POS=0
+					fi
+				done
+				IFS=$OLDIFS
+
+				# Fill out the data array
+				NEW_DATA="$D_host;$D_OS_ver;$D_OS_verShort;$D_COM_upDays;\
+$D_COM_upHours;$D_COM_upMins;$D_COM_users;$D_TSK_tot;$D_TSK_run;$D_TSK_slp;\
+$D_TSK_stp;$D_TSK_zmb;$D_CPU_all;$D_MEM_size;$D_MEM_used;$D_MEM_free;\
+$D_FSY_all;$D_TMP_all;$D_NWK_all"
+
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -1045,28 +1264,306 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+				VBAR="$COLOR_DGRY$DISPLAY_SEPARATOR_V$COLOR_RESET"
+				f=-1
 
-				# Smallest heights (3-10): just show most relevant info
+				# Assign the heading based on standard heights
 				if [ "$CUR_ROWS" -lt 11 ]; then
-					NEW_DRAW[0]=" "
-
-				# Medium heights (11-25): add some formatting
+					:
 				elif [ "$CUR_ROWS" -lt 26 ]; then
-					# Row 0 has a heading
-					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Snake\
+					NEW_DRAW[((++f))]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
 $COLOR_ULINE_OFF]$COLOR_NORM"
-
-				# Largest heights (26+): the full Monty!
 				else
-					# Rows 0-1 have a heading
 					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[0]="$COLOR_GRAY Snake $COLOR_NORM│"
-						NEW_DRAW[1]="──────────────┘"
+						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
+$COLOR_NORM"│"
+						NEW_DRAW[((++f))]="──────────────┘"
 					else
-						NEW_DRAW[0]="$COLOR_GRAY Snake $COLOR_NORM|"
-						NEW_DRAW[1]="--------------+"
+						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
+$COLOR_NORM"|"
+						NEW_DRAW[((++f))]="--------------+"
 					fi
 				fi
+
+				# Rows (f+1)-(g-1) show general information
+				g=$f
+				if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++g))]=$(center\
+						"* "$COLOR_GRAY$COLOR_ULINE"General"$COLOR_RESET" *"\
+						$CUR_COLS)
+					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
+${DATA_ARRAY[1]}"
+					if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
+						NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
+${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hrs, ${DATA_ARRAY[5]} Mins"
+						NEW_DRAW[((++g))]=$COLOR_GRAY"Users online:\
+$COLOR_RESET ${DATA_ARRAY[6]}"
+					fi
+					((++g))
+				fi
+
+				# Rows (g+1)-(h-1) show task information
+				h=$g
+				if [ "$h" -lt "$(( CUR_ROWS-6 ))" ]; then
+					NEW_DRAW[((++h))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Tasks"$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[((++h))]=$COLOR_GRAY"Total:$COLOR_RESET $(extend\
+						"${DATA_ARRAY[7]}" 5) ["
+					BAR_WIDTH=$(( CUR_COLS-15 ))
+					RUN_WIDTH=$(( DATA_ARRAY[8] / BAR_WIDTH +\
+						(DATA_ARRAY[8]?1:0)))
+					STP_WIDTH=$(( DATA_ARRAY[10] / BAR_WIDTH +\
+						(DATA_ARRAY[10]?1:0)))
+					ZMB_WIDTH=$(( DATA_ARRAY[11] / BAR_WIDTH +\
+						(DATA_ARRAY[11]?1:0)))
+					SLP_WIDTH=$(( BAR_WIDTH-(RUN_WIDTH+STP_WIDTH+ZMB_WIDTH) ))
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GREN$(randomize "="\
+						$RUN_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_BLUE$(randomize "="\
+						$SLP_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_RED2$(randomize "="\
+						$STP_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GRAY$(randomize "="\
+						$ZMB_WIDTH)
+					NEW_DRAW[$h]=${NEW_DRAW[$h]}"]"
+					NEW_DRAW[((++h))]=""
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GREN \
+$COLOR_BG_NORM$COLOR_GRAY""Run:$COLOR_NORM "$(( DATA_ARRAY[8] ))"  "
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_BLUE \
+$COLOR_BG_NORM$COLOR_GRAY""Slp:$COLOR_NORM "$(( DATA_ARRAY[9] ))"  "
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_RED2 \
+$COLOR_BG_NORM$COLOR_GRAY""Stp:$COLOR_NORM "$(( DATA_ARRAY[10] ))"  "
+					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GRAY \
+$COLOR_BG_NORM$COLOR_GRAY""Zmb:$COLOR_NORM "$(( DATA_ARRAY[11] ))
+					NEW_DRAW[$h]="$(center "${NEW_DRAW[$h]}" $CUR_COLS)"
+					((++h))
+				fi
+
+				# Rows (h+1)-(i-1) show CPU info
+				i=$h
+				if [ "$i" -lt "$(( CUR_ROWS-9 ))" ]; then
+					NEW_DRAW[((++i))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"CPU"$COLOR_RESET" *" $CUR_COLS)
+					CELL_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/15 + 6 ))
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_TR\
+$COLOR_RESET
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					NEW_DRAW[((++i))]=$VBAR$COLOR_GRAY"CPU"$COLOR_RESET$VBAR\
+$(centerex $COLOR_GRAY"User"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Kernel"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"I/O"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Intrpt"$COLOR_RESET $CELL_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Idle"$COLOR_RESET $CELL_WIDTH)$VBAR
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					CPU_DATA=${DATA_ARRAY[12]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					CPU_DATA=($CPU_DATA)
+					IFS=$OLDIFS
+					for j in `seq 1 ${CPU_DATA[0]}`; do
+						oneCPU=${CPU_DATA[$j]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneCPU)
+						IFS=$OLDIFS
+						NEW_DRAW[((++i))]=$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex\
+							"${PARTS[0]}" 3)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[1]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[2]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[3]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[4]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
+							"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
+						NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+						if [ "$i" -eq "$((CUR_ROWS-5))" ]; then break; fi
+					done
+					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_BR\
+$COLOR_RESET
+					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
+					((++i))
+				fi
+
+				# Rows (i+1)-(j-1) show memory usage
+				j=$i
+				if [ "$j" -lt "$(( CUR_ROWS-6 ))" ]; then
+					NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Mem Use"$COLOR_RESET" *" $CUR_COLS)
+					NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
+" $(fmt_mem "${DATA_ARRAY[13]}" 1)   "$COLOR_GRAY"Used:"$COLOR_RESET\
+" $(fmt_mem "${DATA_ARRAY[14]}" 1)" $CUR_COLS)
+					NEW_DRAW[((++j))]=$(percent_bar\
+						$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
+						$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
+					NEW_DRAW[$j]=$(center "${NEW_DRAW[$j]}" $CUR_COLS)
+					((++j))
+				fi
+
+				# Rows (j+1)-(k-1) show filesystem usage
+				k=$j
+				if [ "$k" -lt "$(( CUR_ROWS-9 ))" ]; then
+					NEW_DRAW[((++k))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Filesystems"$COLOR_RESET" *" $CUR_COLS)
+					MOUNT_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/12 + 18 ))
+					SIZE_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/18 + 8 ))
+					BAR_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/9 + 10 ))
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_T\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_TR$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]=$VBAR\
+$(extend $COLOR_GRAY" Mount"$COLOR_RESET $MOUNT_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Capacity"$COLOR_RESET $SIZE_WIDTH)$VBAR\
+$(centerex $COLOR_GRAY"Usage"$COLOR_RESET $BAR_WIDTH)$VBAR
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_C\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					FSY_DATA=${DATA_ARRAY[16]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					FSY_DATA=($FSY_DATA)
+					IFS=$OLDIFS
+					for FSYno in `seq 1 ${FSY_DATA[0]}`; do
+						oneFSY=${FSY_DATA[$FSYno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneFSY)
+						IFS=$OLDIFS
+						NEW_DRAW[((++k))]=$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(truncate "$(extend\
+							" ${PARTS[0]}" $MOUNT_WIDTH)" $MOUNT_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex "$(extendl\
+							"$(fmt_mem ${PARTS[1]} 1)" 8)" $SIZE_WIDTH)$VBAR
+						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex\
+							"$(percent_bar\
+								"${PARTS[2]}" $BAR_WIDTH\
+								$COLOR_ORNG $COLOR_BG_ORNG\
+							)"\
+							$BAR_WIDTH\
+						)$VBAR
+						NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+						if [ "$k" -eq "$((CUR_ROWS-5))" ]; then break; fi
+					done
+					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
+$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_B\
+$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
+					((++k))
+				fi
+
+				# Rows (k+1)-(l-1) show temperature info
+				l=$k
+				if [ "$l" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++l))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Temperature"$COLOR_RESET" *" $CUR_COLS)
+					SEG_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)*3/56 + 3 ))
+					BAR_WIDTH=$(( SEG_WIDTH*7 ))
+					if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
+						MIN_TEMP="32"
+					else
+						MIN_TEMP="0"
+					fi
+					COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2"\
+						"$COLOR_HEAT_3" "$COLOR_HEAT_4" "$COLOR_HEAT_5"\
+						"$COLOR_HEAT_6")
+					BGCOLORS=("$COLOR_BG_HEAT_0" "$COLOR_BG_HEAT_1"\
+						"$COLOR_BG_HEAT_2" "$COLOR_BG_HEAT_3"\
+						"$COLOR_BG_HEAT_4" "$COLOR_BG_HEAT_5"\
+						"$COLOR_BG_HEAT_6")
+					TMP_DATA=${DATA_ARRAY[17]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					TMP_DATA=($TMP_DATA)
+					IFS=$OLDIFS
+					for TMPno in `seq 1 ${TMP_DATA[0]}`; do
+						oneTMP=${TMP_DATA[$TMPno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneTMP)
+						IFS=$OLDIFS
+						((++l))
+						NEW_DRAW[$l]=$(truncate "${PARTS[0]}"\
+							$(( CUR_COLS-(SEG_WIDTH*7+10) )))" "\
+$(printf "%2d" "$MIN_TEMP")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
+						for POS in `seq 0 $(( BAR_WIDTH-1 ))`; do
+							if [ "$POS" -eq "$(( BAR_WIDTH *\
+									(PARTS[1]-MIN_TEMP) / (PARTS[2]-MIN_TEMP)\
+									))" ]; then
+								NEW_DRAW[$l]=${NEW_DRAW[$l]}${BGCOLORS[$((\
+									POS*7/BAR_WIDTH ))]}" "$COLOR_BG_NORM
+							else
+								NEW_DRAW[$l]=${NEW_DRAW[$l]}${COLORS[$((\
+									POS*7/BAR_WIDTH ))]}"-"$COLOR_NORM
+							fi
+						done
+						NEW_DRAW[$l]=${NEW_DRAW[$l]}\
+$(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
+						NEW_DRAW[$l]=$(center "${NEW_DRAW[$l]}" $CUR_COLS)
+						if [ "$l" -eq "$(( CUR_ROWS-4))" ]; then break; fi
+					done
+					((++l))
+				fi
+
+				# Rows (l+1)-(m-1) show network info
+				m=$l
+				if [ "$m" -lt "$(( CUR_ROWS-5 ))" ]; then
+					NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Network Addresses"$COLOR_RESET" *" $CUR_COLS)
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					NWK_DATA=(${DATA_ARRAY[18]})
+					IFS=$OLDIFS
+					for NWKno in `seq 1 ${NWK_DATA[0]}`; do
+						oneNWK=${NWK_DATA[$NWKno]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u06")
+						PARTS=($oneNWK)
+						IFS=$OLDIFS
+						((++m))
+						NEW_DRAW[$m]=$COLOR_GRAY$(extendl "$(truncate\
+							"${PARTS[0]}" 15)" 15)":$COLOR_RESET "$(extend\
+							"${PARTS[1]}" 15)
+						NEW_DRAW[$m]=$(center "${NEW_DRAW[$m]}" $CUR_COLS)
+						if [ "$m" -eq "$(( CUR_ROWS-4))" ]; then break; fi
+					done
+					((++m))
+				fi
+
+				# Rows (n-2)-(n-1) show an update timestamp
+				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+					"[$COLOR_RED${DATA_ARRAY[0]}$COLOR_RESET]" $CUR_COLS)
+				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | Dash"\
+					$CUR_COLS)
 			fi
 		fi
 
@@ -1578,497 +2075,6 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 						"${DATA_ARRAY[6]}" "+%I:%M%p") | ${DATA_ARRAY[7]}"\
 						$CUR_COLS)
 				fi
-			fi
-		fi
-
-		# --- System Stats ----------------------------------
-		if [ "$CUR_SECT" == 'Y' ]; then
-			# If the data is old, fetch new data, otherwise use the old data
-# TODO:
-DATA_FRESH=0
-			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA=""
-
-				# Get the hostname
-				D_host=$(hostname)
-
-				# Get OS info
-				OS_INFO=$(lsb_release -a 2>&1)
-				D_OS_id=$(grep -oPm1 "(?<=Distributor ID:).*"\
-					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
-				D_OS_rel=$(grep -oPm1 "(?<=Release:).*"\
-					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
-				D_OS_code=$(grep -oPm1 "(?<=Codename:).*"\
-					<<< "$OS_INFO" | head -n1 | sed 's/\s*//g')
-				if [ "$D_OS_id" == "Ubuntu" ]; then
-					D_OS_verShort="$D_OS_id $D_OS_rel"
-					D_OS_ver="$D_OS_id $(grep -oPm1 "(?<=VERSION=\")[^\"]*"\
-						<<< "$(cat /etc/*-release)" | head -n1)"
-				else
-					D_OS_verShort="$D_OS_id $D_OS_rel"
-					D_OS_ver="$D_OS_id$D_OS_rel, $D_OS_code"
-				fi
-
-				# Get system operation info
-				TOP=$(top bsn1 | head -n2 | sed 's/[ \t]\+/\t/g')
-				COM_FEED=$(echo "$TOP" | head -n1)
-				D_COM_upDays=$(echo "$COM_FEED" | cut -f5)
-				D_COM_upHours=$(echo "$COM_FEED" | cut -f7\
-					| sed 's/^\([0-9]\+\):[0-9]\+,$/\1/')
-				D_COM_upMins=$(echo "$COM_FEED" | cut -f7\
-					| sed 's/^[0-9]\+:\([0-9]\+\),$/\1/')
-				D_COM_users=$(echo "$COM_FEED" | cut -f8)
-
-				# Get task info
-				TSK_FEED=$(echo "$TOP" | tail -n1)
-				D_TSK_tot=$(echo "$TSK_FEED" | cut -f2)
-				D_TSK_run=$(echo "$TSK_FEED" | cut -f4)
-				D_TSK_slp=$(echo "$TSK_FEED" | cut -f6)
-				D_TSK_stp=$(echo "$TSK_FEED" | cut -f8)
-				D_TSK_zmb=$(echo "$TSK_FEED" | cut -f10)
-
-				# Get CPU usage info
-				CPU_FEED=$(echo "$(mpstat -P ALL | grep -A16 '\ball\b'\
-					| sed 's/[ \t]\+/\t/g')")
-				D_CPU_count=$(echo "$CPU_FEED" | wc -l)
-				D_CPU_all="$D_CPU_count"
-				OLDIFS=$IFS
-				IFS=$'\n'
-				for oneCPU in $(echo "$CPU_FEED"); do
-					D_CPU_id=$(echo "$oneCPU" | cut -f3)
-					D_CPU_user=$(echo "$oneCPU" | cut -f4)
-					D_CPU_kernel=$(echo "$oneCPU" | cut -f6)
-					D_CPU_io=$(echo "$oneCPU" | cut -f7)
-					D_CPU_interrupt=$(echo "$(echo "$oneCPU" | cut -f8)+\
-$(echo "$oneCPU" | cut -f9)" | bc)
-					D_CPU_idle=$(echo "$oneCPU" | cut -f13)
-					D_CPU_all=$D_CPU_all$(echo -e "\u07")
-					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_interrupt$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_idle
-				done
-				IFS=$OLDIFS
-
-				# Get memory usage info
-				MEM_FEED=$(free -tb | grep Total | sed 's/[ \t]\+/\t/g')
-				D_MEM_size=$(echo "$MEM_FEED" | cut -f2)
-				D_MEM_used=$(echo "$MEM_FEED" | cut -f3)
-				D_MEM_free=$(echo "$MEM_FEED" | cut -f4)
-
-				# Get filesystem usage info
-				FSY_FEED=$(sudo df -lBK --output=source,target,size,pcent\
-					| grep '^/dev' | sed 's/[ \t]\+/\t/g')
-				D_FSY_count=$(echo "$FSY_FEED" | wc -l)
-				D_FSY_all="$D_FSY_count"
-				OLDIFS=$IFS
-				IFS=$'\n'
-				for oneFSY in $(echo "$FSY_FEED"); do
-					D_FSY_mount=$(echo "$oneFSY" | cut -f2)
-					D_FSY_size=$((\
-						$(echo "$oneFSY" | tr -d 'K' | cut -f3)\
-						* 1024\
-					))
-					D_FSY_used=$(echo "$oneFSY" | cut -f4 | tr -d "%"\
-						| sed 's/^\(.*\)$/scale=4;\1\/100/' | bc)
-					D_FSY_all=$D_FSY_all$(echo -e "\u07")
-					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u06")
-					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u06")
-					D_FSY_all=$D_FSY_all$D_FSY_used
-				done
-				IFS=$OLDIFS
-
-				# Get temperature info
-				TMP_FEED=$(sensors "-Au"\
-					| grep '^[^:]\+$\|temp1_input:\|temp1_crit:'\
-					| sed 's/^\s\+//' | sed 's/[ \t]\+/\t/g')
-				D_TMP_count=$(( $(echo "$TMP_FEED" | wc -l) / 3 ))
-				D_TMP_all="$D_TMP_count"
-				D_TMP_sensor=""
-				D_TMP_curTemp=""
-				D_TMP_maxTemp=""
-				OLDIFS=$IFS
-				IFS=$'\n'
-				for oneTMP in $(echo "$TMP_FEED"); do
-					if [ ! -z "$(echo "$oneTMP" | grep 'temp1_input')" ]; then
-						D_TMP_curTemp="$(echo "$oneTMP"\
-							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
-					elif [ ! -z "$(echo "$oneTMP" | grep 'temp1_crit')" ]; then
-						D_TMP_maxTemp="$(echo "$oneTMP"\
-							| sed 's/^.*[ \t]\+\([0-9]\+\.[0-9]\+\)$/\1/')"
-					else
-						D_TMP_sensor=$oneTMP
-					fi
-					if [ ! -z "$D_TMP_sensor" ] && [ ! -z "$D_TMP_curTemp" ]\
-							&& [ ! -z "$D_TMP_maxTemp" ]; then
-						if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
-							D_TMP_curTemp=$(bc <<< "($D_TMP_curTemp*9+160)/5")
-							D_TMP_maxTemp=$(bc <<< "($D_TMP_maxTemp*9+160)/5")
-						fi
-						D_TMP_all=$D_TMP_all$(echo -e "\u07")
-						D_TMP_all=$D_TMP_all$D_TMP_sensor$(echo -e "\u06")
-						D_TMP_all=$D_TMP_all$D_TMP_curTemp$(echo -e "\u06")
-						D_TMP_all=$D_TMP_all$D_TMP_maxTemp
-						D_TMP_sensor=""
-						D_TMP_curTemp=""
-						D_TMP_maxTemp=""
-					fi
-				done
-				IFS=$OLDIFS
-
-				# Get network info
-				IP_URL='http://ipecho.net/plain'
-				NWK_FEED=$(echo -e "Public\n"$(wget -qO- "$IP_URL");\
-					ifconfig | grep '^[^ \t]\|inet addr:' |\
-					sed 's/^.*inet addr:\([0-9\.]*\).*$/\1/' |\
-					sed 's/^\([^ \t]\+\)[ \t].*$/\1/' |\
-					sed 's/eth\([0-9]\+\)/Ethernet \1/' |\
-					sed 's/^lo$/Loopback/'
-				)
-				D_NWK_count=$(( $(echo "$NWK_FEED" | wc -l) / 2 ))
-				D_NWK_all="$D_NWK_count"
-				POS=0
-				OLDIFS=$IFS
-				IFS=$'\n'
-				for oneNWK in $NWK_FEED; do
-					if [ "$POS" -eq 0 ]; then
-						D_NWK_ipName=$oneNWK
-						POS=1
-					else
-						D_NWK_ipAddress=$oneNWK
-						D_NWK_all=$D_NWK_all$(echo -e "\u07")
-						D_NWK_all=$D_NWK_all$D_NWK_ipName$(echo -e "\u06")
-						D_NWK_all=$D_NWK_all$D_NWK_ipAddress
-						POS=0
-					fi
-				done
-				IFS=$OLDIFS
-
-				# Fill out the data array
-				NEW_DATA="$D_host;$D_OS_ver;$D_OS_verShort;$D_COM_upDays;\
-$D_COM_upHours;$D_COM_upMins;$D_COM_users;$D_TSK_tot;$D_TSK_run;$D_TSK_slp;\
-$D_TSK_stp;$D_TSK_zmb;$D_CPU_all;$D_MEM_size;$D_MEM_used;$D_MEM_free;\
-$D_FSY_all;$D_TMP_all;$D_NWK_all"
-
-				DATA=$NEW_DATA
-			else
-				DATA=$OLD_DATA
-			fi
-
-			# If the drawing is old, redo it
-			if [ "$SIZE_FRESH" = 0 ]; then
-				# Expand the data into an array
-				OLDIFS=$IFS
-				IFS=";"
-				DATA_ARRAY=($DATA)
-				IFS=$OLDIFS
-
-				# Create an empty array of rows
-				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
-					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
-				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
-				VBAR="$COLOR_DGRY$DISPLAY_SEPARATOR_V$COLOR_RESET"
-				f=-1
-
-				# Assign the heading based on standard heights
-				if [ "$CUR_ROWS" -lt 11 ]; then
-					:
-				elif [ "$CUR_ROWS" -lt 26 ]; then
-					NEW_DRAW[((++f))]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
-$COLOR_ULINE_OFF]$COLOR_NORM"
-				else
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
-$COLOR_NORM"│"
-						NEW_DRAW[((++f))]="──────────────┘"
-					else
-						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
-$COLOR_NORM"|"
-						NEW_DRAW[((++f))]="--------------+"
-					fi
-				fi
-
-				# Rows (f+1)-(g-1) show general information
-				g=$f
-				if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
-					NEW_DRAW[((++g))]=$(center\
-						"* "$COLOR_GRAY$COLOR_ULINE"General"$COLOR_RESET" *"\
-						$CUR_COLS)
-					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
-${DATA_ARRAY[1]}"
-					if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
-						NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
-${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hrs, ${DATA_ARRAY[5]} Mins"
-						NEW_DRAW[((++g))]=$COLOR_GRAY"Users online:\
-$COLOR_RESET ${DATA_ARRAY[6]}"
-					fi
-					((++g))
-				fi
-
-				# Rows (g+1)-(h-1) show task information
-				h=$g
-				if [ "$h" -lt "$(( CUR_ROWS-6 ))" ]; then
-					NEW_DRAW[((++h))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Tasks"$COLOR_RESET" *" $CUR_COLS)
-					NEW_DRAW[((++h))]=$COLOR_GRAY"Total:$COLOR_RESET $(extend\
-						"${DATA_ARRAY[7]}" 5) ["
-					BAR_WIDTH=$(( CUR_COLS-15 ))
-					RUN_WIDTH=$(( DATA_ARRAY[8] / BAR_WIDTH +\
-						(DATA_ARRAY[8]?1:0)))
-					STP_WIDTH=$(( DATA_ARRAY[10] / BAR_WIDTH +\
-						(DATA_ARRAY[10]?1:0)))
-					ZMB_WIDTH=$(( DATA_ARRAY[11] / BAR_WIDTH +\
-						(DATA_ARRAY[11]?1:0)))
-					SLP_WIDTH=$(( BAR_WIDTH-(RUN_WIDTH+STP_WIDTH+ZMB_WIDTH) ))
-					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GREN$(randomize "="\
-						$RUN_WIDTH)
-					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_BLUE$(randomize "="\
-						$SLP_WIDTH)
-					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_RED2$(randomize "="\
-						$STP_WIDTH)
-					NEW_DRAW[$h]=${NEW_DRAW[$h]}$COLOR_GRAY$(randomize "="\
-						$ZMB_WIDTH)
-					NEW_DRAW[$h]=${NEW_DRAW[$h]}"]"
-					NEW_DRAW[((++h))]=""
-					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GREN \
-$COLOR_BG_NORM$COLOR_GRAY""Run:$COLOR_NORM "$(( DATA_ARRAY[8] ))"  "
-					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_BLUE \
-$COLOR_BG_NORM$COLOR_GRAY""Slp:$COLOR_NORM "$(( DATA_ARRAY[9] ))"  "
-					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_RED2 \
-$COLOR_BG_NORM$COLOR_GRAY""Stp:$COLOR_NORM "$(( DATA_ARRAY[10] ))"  "
-					NEW_DRAW[$h]="${NEW_DRAW[$h]}$COLOR_BG_GRAY \
-$COLOR_BG_NORM$COLOR_GRAY""Zmb:$COLOR_NORM "$(( DATA_ARRAY[11] ))
-					NEW_DRAW[$h]="$(center "${NEW_DRAW[$h]}" $CUR_COLS)"
-					((++h))
-				fi
-
-				# Rows (h+1)-(i-1) show CPU info
-				i=$h
-				if [ "$i" -lt "$(( CUR_ROWS-9 ))" ]; then
-					NEW_DRAW[((++i))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"CPU"$COLOR_RESET" *" $CUR_COLS)
-					CELL_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/15 + 6 ))
-					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
-$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_TR\
-$COLOR_RESET
-					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-					NEW_DRAW[((++i))]=$VBAR$COLOR_GRAY"CPU"$COLOR_RESET$VBAR\
-$(centerex $COLOR_GRAY"User"$COLOR_RESET $CELL_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"Kernel"$COLOR_RESET $CELL_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"I/O"$COLOR_RESET $CELL_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"Intrpt"$COLOR_RESET $CELL_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"Idle"$COLOR_RESET $CELL_WIDTH)$VBAR
-					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
-$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
-					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-					CPU_DATA=${DATA_ARRAY[12]}
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
-					CPU_DATA=($CPU_DATA)
-					IFS=$OLDIFS
-					for j in `seq 1 ${CPU_DATA[0]}`; do
-						oneCPU=${CPU_DATA[$j]}
-						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
-						PARTS=($oneCPU)
-						IFS=$OLDIFS
-						NEW_DRAW[((++i))]=$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex\
-							"${PARTS[0]}" 3)$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-							"${PARTS[1]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-							"${PARTS[2]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-							"${PARTS[3]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-							"${PARTS[4]}%" "0.00" "5")" $CELL_WIDTH)$VBAR
-						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
-							"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
-						NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-						if [ "$i" -eq "$((CUR_ROWS-5))" ]; then break; fi
-					done
-					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
-$(randomize "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_BR\
-$COLOR_RESET
-					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-					((++i))
-				fi
-
-				# Rows (i+1)-(j-1) show memory usage
-				j=$i
-				if [ "$j" -lt "$(( CUR_ROWS-6 ))" ]; then
-					NEW_DRAW[((++j))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Mem Use"$COLOR_RESET" *" $CUR_COLS)
-					NEW_DRAW[((++j))]=$(center $COLOR_GRAY"Total:"$COLOR_RESET\
-" $(fmt_mem "${DATA_ARRAY[13]}" 1)   "$COLOR_GRAY"Used:"$COLOR_RESET\
-" $(fmt_mem "${DATA_ARRAY[14]}" 1)" $CUR_COLS)
-					NEW_DRAW[((++j))]=$(percent_bar\
-						$(echo "${DATA_ARRAY[14]}/${DATA_ARRAY[13]}" | bc -l)\
-						$(( CUR_COLS/2 )) $COLOR_PURP $COLOR_BG_PURP)
-					NEW_DRAW[$j]=$(center "${NEW_DRAW[$j]}" $CUR_COLS)
-					((++j))
-				fi
-
-				# Rows (j+1)-(k-1) show filesystem usage
-				k=$j
-				if [ "$k" -lt "$(( CUR_ROWS-9 ))" ]; then
-					NEW_DRAW[((++k))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Filesystems"$COLOR_RESET" *" $CUR_COLS)
-					MOUNT_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/12 + 18 ))
-					SIZE_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/18 + 8 ))
-					BAR_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)/9 + 10 ))
-					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_TL"\
-$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_T\
-$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_TR$COLOR_RESET
-					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-					NEW_DRAW[((++k))]=$VBAR\
-$(extend $COLOR_GRAY" Mount"$COLOR_RESET $MOUNT_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"Capacity"$COLOR_RESET $SIZE_WIDTH)$VBAR\
-$(centerex $COLOR_GRAY"Usage"$COLOR_RESET $BAR_WIDTH)$VBAR
-					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_L"\
-$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_C\
-$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
-					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-					FSY_DATA=${DATA_ARRAY[16]}
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
-					FSY_DATA=($FSY_DATA)
-					IFS=$OLDIFS
-					for FSYno in `seq 1 ${FSY_DATA[0]}`; do
-						oneFSY=${FSY_DATA[$FSYno]}
-						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
-						PARTS=($oneFSY)
-						IFS=$OLDIFS
-						NEW_DRAW[((++k))]=$VBAR
-						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(truncate "$(extend\
-							" ${PARTS[0]}" $MOUNT_WIDTH)" $MOUNT_WIDTH)$VBAR
-						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex "$(extendl\
-							"$(fmt_mem ${PARTS[1]} 1)" 8)" $SIZE_WIDTH)$VBAR
-						NEW_DRAW[$k]=${NEW_DRAW[$k]}$(centerex\
-							"$(percent_bar\
-								"${PARTS[2]}" $BAR_WIDTH\
-								$COLOR_ORNG $COLOR_BG_ORNG\
-							)"\
-							$BAR_WIDTH\
-						)$VBAR
-						NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-						if [ "$k" -eq "$((CUR_ROWS-5))" ]; then break; fi
-					done
-					NEW_DRAW[((++k))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
-$(randomize "$DISPLAY_SEPARATOR_H" $MOUNT_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $SIZE_WIDTH)$DISPLAY_SEPARATOR_B\
-$(randomize "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_BR$COLOR_RESET
-					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
-					((++k))
-				fi
-
-				# Rows (k+1)-(l-1) show temperature info
-				l=$k
-				if [ "$l" -lt "$(( CUR_ROWS-5 ))" ]; then
-					NEW_DRAW[((++l))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Temperature"$COLOR_RESET" *" $CUR_COLS)
-					SEG_WIDTH=$(( (CUR_COLS-SECTION_MIN_COLS)*3/56 + 3 ))
-					BAR_WIDTH=$(( SEG_WIDTH*7 ))
-					if [ "$STATS_TEMPERATURE_UNITS" == "F" ]; then
-						MIN_TEMP="32"
-					else
-						MIN_TEMP="0"
-					fi
-					COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2"\
-						"$COLOR_HEAT_3" "$COLOR_HEAT_4" "$COLOR_HEAT_5"\
-						"$COLOR_HEAT_6")
-					BGCOLORS=("$COLOR_BG_HEAT_0" "$COLOR_BG_HEAT_1"\
-						"$COLOR_BG_HEAT_2" "$COLOR_BG_HEAT_3"\
-						"$COLOR_BG_HEAT_4" "$COLOR_BG_HEAT_5"\
-						"$COLOR_BG_HEAT_6")
-					TMP_DATA=${DATA_ARRAY[17]}
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
-					TMP_DATA=($TMP_DATA)
-					IFS=$OLDIFS
-					for TMPno in `seq 1 ${TMP_DATA[0]}`; do
-						oneTMP=${TMP_DATA[$TMPno]}
-						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
-						PARTS=($oneTMP)
-						IFS=$OLDIFS
-						((++l))
-						NEW_DRAW[$l]=$(truncate "${PARTS[0]}"\
-							$(( CUR_COLS-(SEG_WIDTH*7+10) )))" "\
-$(printf "%2d" "$MIN_TEMP")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
-						for POS in `seq 0 $(( BAR_WIDTH-1 ))`; do
-							if [ "$POS" -eq "$(( BAR_WIDTH *\
-									(PARTS[1]-MIN_TEMP) / (PARTS[2]-MIN_TEMP)\
-									))" ]; then
-								NEW_DRAW[$l]=${NEW_DRAW[$l]}${BGCOLORS[$((\
-									POS*7/BAR_WIDTH ))]}" "$COLOR_BG_NORM
-							else
-								NEW_DRAW[$l]=${NEW_DRAW[$l]}${COLORS[$((\
-									POS*7/BAR_WIDTH ))]}"-"$COLOR_NORM
-							fi
-						done
-						NEW_DRAW[$l]=${NEW_DRAW[$l]}\
-$(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
-						NEW_DRAW[$l]=$(center "${NEW_DRAW[$l]}" $CUR_COLS)
-						if [ "$l" -eq "$(( CUR_ROWS-4))" ]; then break; fi
-					done
-					((++l))
-				fi
-
-				# Rows (l+1)-(m-1) show network info
-				m=$l
-				if [ "$m" -lt "$(( CUR_ROWS-5 ))" ]; then
-					NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
-"Network Addresses"$COLOR_RESET" *" $CUR_COLS)
-					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
-					NWK_DATA=(${DATA_ARRAY[18]})
-					IFS=$OLDIFS
-					for NWKno in `seq 1 ${NWK_DATA[0]}`; do
-						oneNWK=${NWK_DATA[$NWKno]}
-						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
-						PARTS=($oneNWK)
-						IFS=$OLDIFS
-						((++m))
-						NEW_DRAW[$m]=$COLOR_GRAY$(extendl "$(truncate\
-							"${PARTS[0]}" 15)" 15)":$COLOR_RESET "$(extend\
-							"${PARTS[1]}" 15)
-						NEW_DRAW[$m]=$(center "${NEW_DRAW[$m]}" $CUR_COLS)
-						if [ "$m" -eq "$(( CUR_ROWS-4))" ]; then break; fi
-					done
-					((++m))
-				fi
-
-				# Rows (n-2)-(n-1) show an update timestamp
-				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
-					"[$COLOR_RED${DATA_ARRAY[0]}$COLOR_RESET]" $CUR_COLS)
-				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
-					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | Dash"\
-					$CUR_COLS)
 			fi
 		fi
 
