@@ -258,7 +258,7 @@ function centerex(){
 	echo "$(extend "$(center "$1" $2)" $2)"
 }
 function randomize(){
-	LEN=$(( (${#1}>10?10:${#1}) - 1 ))
+	LEN=$(( (${#1}>10?9:${#1}) - 1 ))
 	RET=""
 	ORDER=""
 	while [ "${#ORDER}" -lt "$2" ]; do
@@ -488,7 +488,7 @@ if [ "$SHOW_EMAIL" = 1 ]; then
 	echo ""
 fi
 if [ "$SHOW_MATRIX" = 1 ]; then
-	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "10")
+	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "60")
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
@@ -555,7 +555,7 @@ function render_sections(){
 				|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*TEMP_Y-1 ))" ]; then
 			continue
 		fi
-		RATING=$(( ( (ROWS * 200) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
+		RATING=$(( ( (ROWS * 165) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
 		DIFF="${RATING#-}"
 		if [ "$DIFF" -lt "$BEST_DIFF" ]; then
 			BEST_DIFF=$DIFF
@@ -986,9 +986,64 @@ $SOURCE_STRING" $CUR_COLS)
 
 		# --- Matrix ----------------------------------------
 		if [ "$CUR_SECT" == 'M' ]; then
+# TODO:
+DATA_FRESH=0
 			# If the data is old, fetch new data, otherwise use the old data
 			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA="---"
+				MATRIX_QUOTES=(\
+					"Wake up, $(whoami)..."\
+					"The Matrix has you..."\
+					"Follow the white rabbit..."\
+					"Knock, knock, $(whoami)"\
+					"Take the red pill"\
+					"There is no spoon"\
+					"The sound of inevitability"\
+				);
+				MATRIX_NUM_QUOTES=${#MATRIX_QUOTES[@]}
+				if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+					MATRIX_CHARS=("ア" "イ" "ウ" "エ" "オ" "カ" "ガ" "キ" "ギ"
+						"ク" "グ" "ケ" "ゲ" "コ" "ゴ" "サ" "ザ" "シ" "ジ" "ス"
+						"ズ" "セ" "ゼ" "ソ" "ゾ" "タ" "ダ" "チ" "ヂ" "ツ" "ヅ"
+						"テ" "デ" "ト" "ド" "ナ" "ニ" "ヌ" "ネ" "ノ" "ハ" "バ"
+						"パ" "ヒ" "ビ" "ピ" "フ" "ブ" "プ" "ヘ" "ベ" "ペ" "ホ"
+						"ボ" "ポ" "マ" "ミ" "ム" "メ" "モ" "ヤ" "ユ" "ヨ" "ラ"
+						"リ" "ル" "レ" "ロ" "ワ" "ヰ" "ヱ" "ヲ" "ン" "ヴ" "・"
+						"ー" "ヽ" "ヾ" "ヿ" "ㄅ" "ㄆ" "ㄇ" "ㄈ" "ㄉ" "ㄊ" "ㄋ"
+						"ㄌ" "ㄍ" "ㄎ" "ㄏ" "ㄐ" "ㄑ" "ㄒ" "ㄓ" "ㄔ" "ㄕ" "ㄖ"
+						"ㄗ" "ㄘ" "ㄙ" "ㄚ" "ㄛ" "ㄜ" "ㄝ" "ㄞ" "ㄟ" "ㄠ" "ㄡ"
+						"ㄢ" "ㄣ" "ㄤ" "ㄥ" "ㄦ" "ㄧ" "ㄨ" "ㄩ"
+					)
+					MATRIX_CHAR_WIDTH=2
+					MATRIX_NUM_CHARS=116
+				else
+					MATRIX_CHARS=("!" "\"" "#" "$" "%" "&" "'" "(" ")" "*" "+"
+						"," "-" "." "/" "0" "1" "2" "3" "4" "5" "6" "7" "8" "9"
+						":" ";" "<" "=" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G"
+						"H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U"
+						"V" "W" "X" "Y" "Z" "[" "\\" "]" "^" "_" "\`" "a"   "b"
+						"c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p"
+						"q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "{" "|" "}" "~"
+					)
+					MATRIX_CHAR_WIDTH=1
+					MATRIX_NUM_CHARS=94
+				fi
+				NEW_DATA="$(( CUR_COLS/MATRIX_CHAR_WIDTH ))"
+				for i in `seq 1 $NEW_DATA`; do
+					if [ "$(( RANDOM%20 ))" -eq 0 ]; then
+						TEXT_STRING=${MATRIX_QUOTES[$((
+							RANDOM%MATRIX_NUM_QUOTES
+						))]}
+					else
+						TEXT_STRING=""
+						for j in `seq 0 $(( $RANDOM%16+5 ))`; do
+							TEXT_STRING=$TEXT_STRING${MATRIX_CHARS[$((
+								RANDOM%MATRIX_NUM_CHARS
+							))]}
+						done
+					fi
+msg "$TEXT_STRING"
+					NEW_DATA=$NEW_DATA";"$TEXT_STRING
+				done
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -1007,27 +1062,11 @@ $SOURCE_STRING" $CUR_COLS)
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
 
-				# Smallest heights (3-10): just show most relevant info
-				if [ "$CUR_ROWS" -lt 11 ]; then
-					NEW_DRAW[0]=" "
-
-				# Medium heights (11-25): add some formatting
-				elif [ "$CUR_ROWS" -lt 26 ]; then
-					# Row 0 has a heading
-					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Matrix\
-$COLOR_ULINE_OFF]$COLOR_NORM"
-
-				# Largest heights (26+): the full Monty!
-				else
-					# Rows 0-1 have a heading
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[0]="$COLOR_GRAY Matrix $COLOR_NORM│"
-						NEW_DRAW[1]="───────────────┘"
-					else
-						NEW_DRAW[0]="$COLOR_GRAY Matrix $COLOR_NORM|"
-						NEW_DRAW[1]="---------------+"
-					fi
-				fi
+				# Rows (n-2)-(n-1) show an update timestamp
+				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+					"["$COLOR_GREN"The Matrix"$COLOR_RESET"]" $CUR_COLS)
+				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+					"call trans opt: received. $(date "+%T")" $CUR_COLS)
 			fi
 		fi
 
