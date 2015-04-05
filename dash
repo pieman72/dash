@@ -60,6 +60,7 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_ULINE_OFF="[0m"
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[38;5;118m"
+	COLOR_LGRN="[38;5;156m"
 	COLOR_BLUE="[38;5;26m"
 	COLOR_LBLU="[38;5;81m"
 	COLOR_RED="[38;5;160m"
@@ -74,6 +75,7 @@ if [ "$DISPLAY_COLOR_PALETTE" == "256" ]; then
 	COLOR_BLCK="[38;5;0m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[48;5;118m"
+	COLOR_BG_LGRN="[48;5;156m"
 	COLOR_BG_BLUE="[48;5;26m"
 	COLOR_BG_LBLU="[48;5;81m"
 	COLOR_BG_RED="[48;5;160m"
@@ -108,6 +110,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_ULINE_OFF="[0m"
 	COLOR_NORM="[0;39m"
 	COLOR_GREN="[32m"
+	COLOR_LGRN="[1;32m"
 	COLOR_BLUE="[1;34m"
 	COLOR_LBLU="[1;36m"
 	COLOR_RED="[31m"
@@ -122,6 +125,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "16" ]; then
 	COLOR_BLCK="[30m"
 	COLOR_BG_NORM="[0;49m"
 	COLOR_BG_GREN="[42m"
+	COLOR_BG_LGRN="[1;42m"
 	COLOR_BG_BLUE="[1;44m"
 	COLOR_BG_LBLU="[1;46m"
 	COLOR_BG_RED="[41m"
@@ -156,6 +160,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_ULINE_OFF=""
 	COLOR_NORM="[39m"
 	COLOR_GREN="[32m"
+	COLOR_LGRN="[32m"
 	COLOR_BLUE="[34m"
 	COLOR_LBLU="[34m"
 	COLOR_RED="[31m"
@@ -170,6 +175,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_BLCK="[30m"
 	COLOR_BG_NORM="[49m"
 	COLOR_BG_GREN="[42m"
+	COLOR_BG_LGRN="[42m"
 	COLOR_BG_BLUE="[44m"
 	COLOR_BG_LBLU="[44m"
 	COLOR_BG_RED="[41m"
@@ -489,6 +495,47 @@ if [ "$SHOW_EMAIL" = 1 ]; then
 fi
 if [ "$SHOW_MATRIX" = 1 ]; then
 	MATRIX_SECONDS_PER_POLL=$(load_config "MATRIX_SECONDS_PER_POLL" "60")
+	MATRIX_QUOTES=(\
+		"Wake up, $(whoami)..."\
+		"The Matrix has you..."\
+		"Follow the white rabbit..."\
+		"Knock, knock, $(whoami)."\
+		"Take the red pill."\
+		"How do you define \"real\"?"\
+		"Don't think you are, know you are."\
+		"The body cannot live without the mind."\
+		"There is no spoon."\
+		"Have a cookie."\
+		"That is the sound of inevitability."\
+		"Dodge this."\
+		"Free your mind."\
+	);
+	MATRIX_NUM_QUOTES=${#MATRIX_QUOTES[@]}
+	if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+		MATRIX_CHARS=("ア" "イ" "ウ" "エ" "オ" "カ" "ガ" "キ" "ギ"
+			"ク" "グ" "ケ" "ゲ" "コ" "ゴ" "サ" "ザ" "シ" "ジ" "ス"
+			"ズ" "セ" "ゼ" "ソ" "ゾ" "タ" "ダ" "チ" "ヂ" "ツ" "ヅ"
+			"テ" "デ" "ト" "ド" "ナ" "ニ" "ヌ" "ネ" "ノ" "ハ" "バ"
+			"パ" "ヒ" "ビ" "ピ" "フ" "ブ" "プ" "ヘ" "ベ" "ペ" "ホ"
+			"ボ" "ポ" "マ" "ミ" "ム" "メ" "モ" "ヤ" "ユ" "ヨ" "ラ"
+			"リ" "ル" "レ" "ロ" "ワ" "ヰ" "ヱ" "ヲ" "ン" "ヴ" "・"
+			"ー" "ヽ" "ヾ" "ヿ" "ㄅ" "ㄆ" "ㄇ" "ㄈ" "ㄉ" "ㄊ" "ㄋ"
+			"ㄌ" "ㄍ" "ㄎ" "ㄏ" "ㄐ" "ㄑ" "ㄒ" "ㄓ" "ㄔ" "ㄕ" "ㄖ"
+			"ㄗ" "ㄘ" "ㄙ" "ㄚ" "ㄛ" "ㄜ" "ㄝ" "ㄞ" "ㄟ" "ㄠ" "ㄡ"
+			"ㄢ" "ㄣ" "ㄤ" "ㄥ" "ㄦ" "ㄧ" "ㄨ" "ㄩ"
+		)
+		MATRIX_CHAR_WIDTH=2
+	else
+		MATRIX_CHARS=("!" "\"" "#" "$" "%" "&" "'" "(" ")" "*" "+"
+			"," "-" "." "/" "0" "1" "2" "3" "4" "5" "6" "7" "8" "9"
+			":" ";" "<" "=" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G"
+			"H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U"
+			"V" "W" "X" "Y" "Z" "[" "\\" "]" "^" "_" "\`" "a"   "b"
+			"c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p"
+			"q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "{" "|" "}" "~"
+		)
+		MATRIX_CHAR_WIDTH=1
+	fi
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
 	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
@@ -555,7 +602,7 @@ function render_sections(){
 				|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*TEMP_Y-1 ))" ]; then
 			continue
 		fi
-		RATING=$(( ( (ROWS * 165) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
+		RATING=$(( ( (ROWS * 200) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
 		DIFF="${RATING#-}"
 		if [ "$DIFF" -lt "$BEST_DIFF" ]; then
 			BEST_DIFF=$DIFF
@@ -986,63 +1033,39 @@ $SOURCE_STRING" $CUR_COLS)
 
 		# --- Matrix ----------------------------------------
 		if [ "$CUR_SECT" == 'M' ]; then
-# TODO:
-DATA_FRESH=0
 			# If the data is old, fetch new data, otherwise use the old data
 			if [ "$DATA_FRESH" = 0 ]; then
-				MATRIX_QUOTES=(\
-					"Wake up, $(whoami)..."\
-					"The Matrix has you..."\
-					"Follow the white rabbit..."\
-					"Knock, knock, $(whoami)"\
-					"Take the red pill"\
-					"There is no spoon"\
-					"The sound of inevitability"\
-				);
-				MATRIX_NUM_QUOTES=${#MATRIX_QUOTES[@]}
-				if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-					MATRIX_CHARS=("ア" "イ" "ウ" "エ" "オ" "カ" "ガ" "キ" "ギ"
-						"ク" "グ" "ケ" "ゲ" "コ" "ゴ" "サ" "ザ" "シ" "ジ" "ス"
-						"ズ" "セ" "ゼ" "ソ" "ゾ" "タ" "ダ" "チ" "ヂ" "ツ" "ヅ"
-						"テ" "デ" "ト" "ド" "ナ" "ニ" "ヌ" "ネ" "ノ" "ハ" "バ"
-						"パ" "ヒ" "ビ" "ピ" "フ" "ブ" "プ" "ヘ" "ベ" "ペ" "ホ"
-						"ボ" "ポ" "マ" "ミ" "ム" "メ" "モ" "ヤ" "ユ" "ヨ" "ラ"
-						"リ" "ル" "レ" "ロ" "ワ" "ヰ" "ヱ" "ヲ" "ン" "ヴ" "・"
-						"ー" "ヽ" "ヾ" "ヿ" "ㄅ" "ㄆ" "ㄇ" "ㄈ" "ㄉ" "ㄊ" "ㄋ"
-						"ㄌ" "ㄍ" "ㄎ" "ㄏ" "ㄐ" "ㄑ" "ㄒ" "ㄓ" "ㄔ" "ㄕ" "ㄖ"
-						"ㄗ" "ㄘ" "ㄙ" "ㄚ" "ㄛ" "ㄜ" "ㄝ" "ㄞ" "ㄟ" "ㄠ" "ㄡ"
-						"ㄢ" "ㄣ" "ㄤ" "ㄥ" "ㄦ" "ㄧ" "ㄨ" "ㄩ"
-					)
-					MATRIX_CHAR_WIDTH=2
-					MATRIX_NUM_CHARS=116
-				else
-					MATRIX_CHARS=("!" "\"" "#" "$" "%" "&" "'" "(" ")" "*" "+"
-						"," "-" "." "/" "0" "1" "2" "3" "4" "5" "6" "7" "8" "9"
-						":" ";" "<" "=" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G"
-						"H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U"
-						"V" "W" "X" "Y" "Z" "[" "\\" "]" "^" "_" "\`" "a"   "b"
-						"c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p"
-						"q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "{" "|" "}" "~"
-					)
-					MATRIX_CHAR_WIDTH=1
-					MATRIX_NUM_CHARS=94
-				fi
 				NEW_DATA="$(( CUR_COLS/MATRIX_CHAR_WIDTH ))"
 				for i in `seq 1 $NEW_DATA`; do
-					if [ "$(( RANDOM%20 ))" -eq 0 ]; then
-						TEXT_STRING=${MATRIX_QUOTES[$((
-							RANDOM%MATRIX_NUM_QUOTES
-						))]}
-					else
-						TEXT_STRING=""
-						for j in `seq 0 $(( $RANDOM%16+5 ))`; do
-							TEXT_STRING=$TEXT_STRING${MATRIX_CHARS[$((
-								RANDOM%MATRIX_NUM_CHARS
-							))]}
-						done
-					fi
-msg "$TEXT_STRING"
-					NEW_DATA=$NEW_DATA";"$TEXT_STRING
+					NEW_DATA=$NEW_DATA$(echo -e "\u07")
+					COL_DATA=""
+					COL_LEN=0;
+					for j in `seq 1 $CUR_ROWS`; do
+						TEXT_TYPE=$(( RANDOM % 100 ))
+						if [ "$TEXT_TYPE" -lt 10 ]; then
+							TEXT_TYPE=0;
+							TEXT_LEN=$(( RANDOM % 15 + 7 ))
+							COL_LEN=$(( COL_LEN + TEXT_LEN ))
+							COL_DATA=$COL_DATA$TEXT_TYPE","$TEXT_LEN
+						elif [ "$TEXT_TYPE" -lt 98 ]; then
+							TEXT_TYPE=1;
+							TEXT_LEN=$(( RANDOM % 20 + 17 ))
+							COL_LEN=$(( COL_LEN + TEXT_LEN ))
+							COL_DATA=$COL_DATA$TEXT_TYPE","$TEXT_LEN
+						else
+							TEXT_TYPE=2
+							QUOTE_ID=$(( RANDOM % MATRIX_NUM_QUOTES + 1 ))
+							TEXT_LEN=${#MATRIX_QUOTES[$(( QUOTE_ID-1 ))]}
+							COL_LEN=$(( COL_LEN + TEXT_LEN ))
+							COL_DATA=$COL_DATA$TEXT_TYPE","$QUOTE_ID
+						fi
+						if [ "$COL_LEN" -ge "$CUR_ROWS" ]; then
+							break
+						else
+							COL_DATA=$COL_DATA$(echo -e "\u06")
+						fi
+					done
+					NEW_DATA=$NEW_DATA$COL_LEN$(echo -e "\u06")$COL_DATA
 				done
 				DATA=$NEW_DATA
 			else
@@ -1053,7 +1076,7 @@ msg "$TEXT_STRING"
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=";"
+				IFS=$(echo -e "\u07")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -1061,6 +1084,96 @@ msg "$TEXT_STRING"
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+
+				# Iterate over matrix columns
+				for i in `seq 1 ${DATA_ARRAY[0]}`; do
+					# Expand the column into strings
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u06")
+					STRINGS=(${DATA_ARRAY[$i]})
+					IFS=$OLDIFS
+
+					# Choose an offset for drawing
+					NUM_STRINGS=$(( ${#STRINGS[@]} - 1 ))
+					COL_LEN=${STRINGS[0]}
+					OVERFLOW=$(( COL_LEN - CUR_ROWS ))
+					OFFSET=$(( (OVERFLOW>0) ? (RANDOM%OVERFLOW) : 0 ))
+
+					# Iterate over strings, filling in drawing
+					DRAW_ROW=$(( 0 - OFFSET ))
+					for j in `seq 1 $NUM_STRINGS`; do
+						ONE_STRING=${STRINGS[$j]}
+						TEXT_TYPE=${ONE_STRING%,*}
+
+						# Empty space strings
+						if [ "$TEXT_TYPE" -eq 0 ]; then
+							TEXT_LEN=${ONE_STRING#*,}
+							for k in `seq 0 $(( TEXT_LEN - 1 ))`; do
+								if [ "$DRAW_ROW" -lt "$CUR_ROWS" ]\
+										&& [ "$DRAW_ROW" -ge 0 ]; then
+									NEW_CHAR="  "
+									if [ "$k" -eq "$(( TEXT_LEN-1 ))" ]; then
+										NEW_CHAR=$COLOR_BOLD$COLOR_WHIT\
+$NEW_CHAR$COLOR_BOLD_OFF$COLOR_GREN
+									elif [ "$k" -eq "$(( TEXT_LEN-2 ))" ]; then
+										NEW_CHAR=$COLOR_LGRN$NEW_CHAR\
+$COLOR_GREN
+									fi
+									NEW_DRAW[$DRAW_ROW]=${NEW_DRAW[$DRAW_ROW]}\
+$NEW_CHAR
+								fi
+								((++DRAW_ROW))
+							done
+
+						# Character strings
+						elif [ "$TEXT_TYPE" -eq 1 ]; then
+							TEXT_LEN=${ONE_STRING#*,}
+							for k in `seq 0 $(( TEXT_LEN - 1 ))`; do
+								if [ "$DRAW_ROW" -lt "$CUR_ROWS" ]\
+										&& [ "$DRAW_ROW" -ge 0 ]; then
+									NEW_CHAR=${MATRIX_CHARS[$(( RANDOM\
+											% ${#MATRIX_CHARS[@]} ))]}
+									if [ "$k" -eq "$(( TEXT_LEN-1 ))" ]; then
+										NEW_CHAR=$COLOR_BOLD$COLOR_WHIT\
+$NEW_CHAR$COLOR_BOLD_OFF$COLOR_GREN
+									elif [ "$k" -eq "$(( TEXT_LEN-2 ))" ]; then
+										NEW_CHAR=$COLOR_LGRN$NEW_CHAR\
+$COLOR_GREN
+									fi
+									NEW_DRAW[$DRAW_ROW]=${NEW_DRAW[$DRAW_ROW]}\
+$NEW_CHAR
+								fi
+								((++DRAW_ROW))
+							done
+
+						# Quote strings
+						else
+							TEXT=${MATRIX_QUOTES[${ONE_STRING#*,}]}
+							TEXT_LEN=$(echo -en "$TEXT" | wc -m)
+							for k in `seq 0 $(( TEXT_LEN - 1 ))`; do
+								if [ "$DRAW_ROW" -lt "$CUR_ROWS" ]\
+										&& [ "$DRAW_ROW" -ge 0 ]; then
+									NEW_CHAR=${TEXT:$k:1}" "
+									if [ "$k" -eq "$(( TEXT_LEN-1 ))" ]; then
+										NEW_CHAR=$COLOR_BOLD$COLOR_WHIT\
+$NEW_CHAR$COLOR_BOLD_OFF$COLOR_GREN
+									elif [ "$k" -eq "$(( TEXT_LEN-2 ))" ]; then
+										NEW_CHAR=$COLOR_LGRN$NEW_CHAR\
+$COLOR_GREN
+									fi
+									NEW_DRAW[$DRAW_ROW]=${NEW_DRAW[$DRAW_ROW]}\
+$NEW_CHAR
+								fi
+								((++DRAW_ROW))
+							done
+						fi
+					done
+				done
+
+				# Add classic green color
+				for i in `seq 0 $(( CUR_ROWS - 1 ))`;do
+					NEW_DRAW[$i]=$COLOR_GREN${NEW_DRAW[$i]}$COLOR_RESET
+				done
 
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
@@ -1886,7 +1999,7 @@ ${DATA_ARRAY[9]}"mph"
 					fi
 
 					# Row 2 shows the weather status and
-					# Rows 3-9 Show a large-size decorated temperature read-out
+					# Rows 3-9 show a large-size decorated temperature read-out
 					DECORATION_STRING=" "
 					DECORATION_COLOR="$COLOR_NORM"
 					DECORATION_COLOR_BG="$COLOR_BG_NORM"
