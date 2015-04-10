@@ -203,6 +203,7 @@ elif [ "$DISPLAY_COLOR_PALETTE" == "8" ]; then
 	COLOR_BG_HEAT_5="[41m"
 	COLOR_BG_HEAT_6="[41m"
 fi
+DISPLAY_SEPARATOR_COLOR=$(load_config "DISPLAY_SEPARATOR_COLOR" "$COLOR_DGRY")
 
 # Control functions
 function msg(){
@@ -762,13 +763,10 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 				# Largest heights (26+): the full Monty!
 				else
 					# Rows 0-1 have a heading
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[0]="$COLOR_GRAY Calendar $COLOR_NORM│"
-						NEW_DRAW[1]="──────────────┘"
-					else
-						NEW_DRAW[0]="$COLOR_GRAY Calendar $COLOR_NORM|"
-						NEW_DRAW[1]="--------------+"
-					fi
+					NEW_DRAW[0]=$COLOR_GRAY" Calendar "\
+$DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
+					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+$(repeat "$DISPLAY_SEPARATOR_H" 10)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				fi
 			fi
 		fi
@@ -960,13 +958,10 @@ ${DATA_PIECES[3]}$COLOR_ULINE_OFF - $(truncate\
 						# For the heading
 						elif [ "$i" == "0" ]; then
 							# Rows 0-1 have a heading
-							if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-								NEW_DRAW[0]="$COLOR_GRAY Email $COLOR_NORM│"
-								NEW_DRAW[1]="───────┘"
-							else
-								NEW_DRAW[0]="$COLOR_GRAY Email $COLOR_NORM|"
-								NEW_DRAW[1]="-------+"
-							fi
+							NEW_DRAW[0]=$COLOR_GRAY" Email "\
+$DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
+							NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+$(repeat "$DISPLAY_SEPARATOR_H" 7)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 
 							# Row 2 shows the message count
 							NEW_DRAW[2]=$(center "No New Messages" $CUR_COLS)
@@ -1052,16 +1047,19 @@ $SOURCE_STRING" $CUR_COLS)
 					COL_LEN=0;
 					for j in `seq 1 $CUR_ROWS`; do
 						TEXT_TYPE=$(( RANDOM % 100 ))
-						if [ "$TEXT_TYPE" -lt 10 ]; then
+						# Empty strings
+						if [ "$TEXT_TYPE" -lt 18 ]; then
 							TEXT_TYPE=0;
 							TEXT_LEN=$(( RANDOM % 15 + 7 ))
 							COL_LEN=$(( COL_LEN + TEXT_LEN ))
 							COL_DATA=$COL_DATA$TEXT_TYPE","$TEXT_LEN
+						# Random character strings
 						elif [ "$TEXT_TYPE" -lt 98 ]; then
 							TEXT_TYPE=1;
 							TEXT_LEN=$(( RANDOM % 20 + 17 ))
 							COL_LEN=$(( COL_LEN + TEXT_LEN ))
 							COL_DATA=$COL_DATA$TEXT_TYPE","$TEXT_LEN
+						# Quote strings
 						else
 							TEXT_TYPE=2
 							QUOTE_ID=$(( RANDOM % MATRIX_NUM_QUOTES + 1 ))
@@ -1229,13 +1227,10 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 				# Largest heights (26+): the full Monty!
 				else
 					# Rows 0-1 have a heading
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[0]="$COLOR_GRAY News $COLOR_NORM│"
-						NEW_DRAW[1]="──────────────┘"
-					else
-						NEW_DRAW[0]="$COLOR_GRAY News $COLOR_NORM|"
-						NEW_DRAW[1]="--------------+"
-					fi
+					NEW_DRAW[0]=$COLOR_GRAY" News "\
+$DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
+					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+$(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				fi
 			fi
 		fi
@@ -1436,15 +1431,10 @@ $D_FSY_all;$D_TMP_all;$D_NWK_all"
 					NEW_DRAW[((++f))]=" $COLOR_GRAY["$COLOR_ULINE"System Stats\
 $COLOR_ULINE_OFF]$COLOR_NORM"
 				else
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
-$COLOR_NORM"│"
-						NEW_DRAW[((++f))]="──────────────┘"
-					else
-						NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
-$COLOR_NORM"|"
-						NEW_DRAW[((++f))]="--------------+"
-					fi
+					NEW_DRAW[((++f))]=$COLOR_GRAY" System Stats "\
+$DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
+					NEW_DRAW[((++f))]=$DISPLAY_SEPARATOR_COLOR\
+$(repeat "$DISPLAY_SEPARATOR_H" 14)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				fi
 
 				# Rows (f+1)-(g-1) show general information
@@ -2000,13 +1990,10 @@ ${DATA_ARRAY[9]}"mph"
 				# Largest heights (26+): the full Monty!
 				else
 					# Rows 0-1 have a heading
-					if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-						NEW_DRAW[0]="$COLOR_GRAY Weather $COLOR_NORM│"
-						NEW_DRAW[1]="─────────┘"
-					else
-						NEW_DRAW[0]="$COLOR_GRAY Weather $COLOR_NORM|"
-						NEW_DRAW[1]="---------+"
-					fi
+					NEW_DRAW[0]=$COLOR_GRAY" Weather "\
+$DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
+					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+$(repeat "$DISPLAY_SEPARATOR_H" 9)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 
 					# Row 2 shows the weather status and
 					# Rows 3-9 show a large-size decorated temperature read-out
@@ -2276,15 +2263,18 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 					tput cup $ROWS_PROCESSED $COLS_PROCESSED
 					if [ "$CUR_X" -gt 0 ]; then
 						if [[ "$PREV_SECT" != "_" ]]; then
-							echo -n $DISPLAY_SEPARATOR_C;
+							echo -n $DISPLAY_SEPARATOR_COLOR\
+$DISPLAY_SEPARATOR_C$COLOR_RESET;
 						else
-							echo -n $DISPLAY_SEPARATOR_CB;
+							echo -n $DISPLAY_SEPARATOR_COLOR\
+$DISPLAY_SEPARATOR_CB$COLOR_RESET;
 						fi
 					fi
 					if [ "$DISPLAY_SEPARATOR_H" == "-" ]; then
 						echo "$(head -c "$CUR_COLS" < "/dev/zero"|tr '\0' '-')"
 					else
-						printf "$DISPLAY_SEPARATOR_H%.0s" $(seq 1 $CUR_COLS)
+						printf "$DISPLAY_SEPARATOR_COLOR\
+$DISPLAY_SEPARATOR_H$COLOR_RESET%.0s" $(seq 1 $CUR_COLS)
 					fi
 				fi
 
@@ -2298,7 +2288,8 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 					tput cup $((ROWS_PROCESSED+BORDER_TOP+i)) $COLS_PROCESSED
 					if [ "$BORDER_LEFT" = 1 ]; then
 						if [[ "$PREV_SECT" != "_" ]]; then
-							echo -n "$DISPLAY_SEPARATOR_V";
+							echo -n $DISPLAY_SEPARATOR_COLOR\
+$DISPLAY_SEPARATOR_V$COLOR_RESET;
 						fi
 					fi
 					echo -n "${DRAW[$i]}"
