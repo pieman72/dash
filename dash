@@ -572,9 +572,74 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 		WEATHER_TEMPERATURE_OFFSET=1
 		WEATHER_TEMPERATURE_UNITS='C'
 	fi
+	declare -A WEATHER_COLORS
+	WEATHER_COLORS["Fair"]=$COLOR_YELO
+	WEATHER_COLORS["A Few Clouds"]=$COLOR_YELO
+	WEATHER_COLORS["Partly Cloudy"]=$COLOR_WHIT
+	WEATHER_COLORS["Mostly Cloudy"]=$COLOR_LGRY
+	WEATHER_COLORS["Mostly Cloudy with Haze"]=$COLOR_LGRY
+	WEATHER_COLORS["Overcast with Haze"]=$COLOR_GRAY
+	WEATHER_COLORS["Overcast"]=$COLOR_GRAY
+	WEATHER_COLORS["Light Rain"]=$COLOR_BLUE
+	WEATHER_COLORS["Rain"]=$COLOR_BLUE
+	WEATHER_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_LBLU
+	WEATHER_COLORS["Fog/Mist"]=$COLOR_LGRY
+	WEATHER_COLORS["Light Snow"]=$COLOR_WHIT
+	WEATHER_COLORS["Snow"]=$COLOR_WHIT
+	WEATHER_DEGREE_SYMBOL="°"
+	declare -A WEATHER_BG_COLORS
+	WEATHER_BG_COLORS["Fair"]=$COLOR_BG_YELO
+	WEATHER_BG_COLORS["A Few Clouds"]=$COLOR_BG_YELO
+	WEATHER_BG_COLORS["Partly Cloudy"]=$COLOR_BG_WHIT
+	WEATHER_BG_COLORS["Mostly Cloudy"]=$COLOR_BG_LGRY
+	WEATHER_BG_COLORS["Mostly Cloudy with Haze"]=$COLOR_BG_LGRY
+	WEATHER_BG_COLORS["Overcast with Haze"]=$COLOR_BG_GRAY
+	WEATHER_BG_COLORS["Overcast"]=$COLOR_BG_GRAY
+	WEATHER_BG_COLORS["Light Rain"]=$COLOR_BG_BLUE
+	WEATHER_BG_COLORS["Rain"]=$COLOR_BG_BLUE
+	WEATHER_BG_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_BG_LBLU
+	WEATHER_BG_COLORS["Fog/Mist"]=$COLOR_BG_LGRY
+	WEATHER_BG_COLORS["Light Snow"]=$COLOR_BG_WHIT
+	WEATHER_BG_COLORS["Snow"]=$COLOR_BG_WHIT
+	WEATHER_DEGREE_SYMBOL="°"
+	declare -A WEATHER_DECORATIONS
 	if [ "$DISPLAY_ENCODING" == 'UTF8' ]; then
+		WEATHER_DECORATIONS["Fair"]="-$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["A Few Clouds"]="~☁$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Partly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Mostly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]"☁ᢆ░3~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Overcast with Haze"]="☁☁ᢆᢆ░3~"
+		WEATHER_DECORATIONS["Overcast"]="☁☁☁3~"
+		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
+		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
+		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\ᢆ☁~   "
+		WEATHER_DECORATIONS["Fog/Mist"]="☁ᢆᢆ░~  "
+		WEATHER_DECORATIONS["Light Snow"]=".❄$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
+		WEATHER_DECORATIONS["Snow"]="❄✲❄❅❆❈❉.$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DEGREE_SYMBOL="°"
 	else
+		WEATHER_DECORATIONS["Fair"]="-$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["A Few Clouds"]="~3$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Partly Cloudy"]="3~$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Mostly Cloudy"]="3~$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]="33~\
+$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Overcast with Haze"]="333~~"
+		WEATHER_DECORATIONS["Overcast"]="333~~"
+		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
+		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
+		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\\\3~   "
+		WEATHER_DECORATIONS["Fog/Mist"]="3++#~  "
+		WEATHER_DECORATIONS["Light Snow"]=".\`$DISPLAY_ESCAPE_SPACE\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
+		WEATHER_DECORATIONS["Snow"]="\`.$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DEGREE_SYMBOL="'"
 	fi
 fi
@@ -1822,102 +1887,12 @@ ${DATA_ARRAY[3]}$WEATHER_DEGREE_SYMBOL")"
 $COLOR_ULINE_OFF]$COLOR_NORM"
 
 					# Rows 1-3 are the weather status and its border
-					DECORATION_STRING=" "
-					DECORATION_COLOR="$COLOR_NORM"
-					# Fair
-					if [ "${DATA_ARRAY[0]}" == "Fair" ]; then
-						DECORATION_STRING="-$DISPLAY_ESCAPE_SPACE"
-						DECORATION_COLOR="$COLOR_YELO"
-					# A Few Clouds
-					elif [ "${DATA_ARRAY[0]}" == "A Few Clouds" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="~☁$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_YELO"
-					# Partly Cloudy
-					elif [ "${DATA_ARRAY[0]}" == "Partly Cloudy" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-					# Mostly Cloudy
-					elif [ "${DATA_ARRAY[0]}" == "Mostly Cloudy" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-					# Overcast with Haze
-					elif [ "${DATA_ARRAY[0]}" == "Overcast with Haze" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁☁ᢆᢆ░3~"
-						else
-							DECORATION_STRING="333~~"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-					# Overcast
-					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁☁☁3~"
-						else
-							DECORATION_STRING="333~~"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-					# Light Rain
-					elif [ "${DATA_ARRAY[0]}" == "Light Rain" ]; then
-						DECORATION_STRING='``'"''\\\|   "
-						DECORATION_COLOR="$COLOR_BLUE"
-					# Rain
-					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
-						DECORATION_STRING='````'"'''\\\\\|"
-						DECORATION_COLOR="$COLOR_BLUE"
-					# Light Freezing Rain Fog/Mist
-					elif [ "${DATA_ARRAY[0]}" ==\
-						"Light Freezing Rain Fog/Mist" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="\`\`\\ᢆ☁~   "
-						else
-							DECORATION_STRING="\`\`\\\\3~   "
-						fi
-						DECORATION_COLOR="$COLOR_LBLU"
-					# Fog/Mist
-					elif [ "${DATA_ARRAY[0]}" == "Fog/Mist" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁ᢆᢆ░~  "
-						else
-							DECORATION_STRING="3++#~  "
-						fi
-						DECORATION_COLOR="$COLOR_LGRY"
-					# Light Snow
-					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING=".❄\"$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING='.`"'"$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-					# Snow
-					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="❄✲❄❅❆❈❉.\"$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-					# ???
-					else
+					DECORATION_STRING=${WEATHER_DECORATIONS[${DATA_ARRAY[0]}]}
+					DECORATION_COLOR=${WEATHER_COLORS[${DATA_ARRAY[0]}]}
+					if [ -z "$DECORATION_STRING" ]; then
 						DECORATION_STRING="?$DISPLAY_ESCAPE_SPACE"
+					fi
+					if [ -z "$DECORATION_COLOR" ]; then
 						DECORATION_COLOR="$COLOR_NORM"
 					fi
 					NEW_DRAW[1]=$DECORATION_COLOR$(center $(randomize\
@@ -1997,116 +1972,16 @@ $(repeat "$DISPLAY_SEPARATOR_H" 9)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 
 					# Row 2 shows the weather status and
 					# Rows 3-9 show a large-size decorated temperature read-out
-					DECORATION_STRING=" "
-					DECORATION_COLOR="$COLOR_NORM"
-					DECORATION_COLOR_BG="$COLOR_BG_NORM"
-					# Fair
-					if [ "${DATA_ARRAY[0]}" == "Fair" ]; then
-						DECORATION_STRING="-$DISPLAY_ESCAPE_SPACE"
-						DECORATION_COLOR="$COLOR_YELO"
-						DECORATION_COLOR_BG="$COLOR_BG_YELO"
-					# A Few Clouds
-					elif [ "${DATA_ARRAY[0]}" == "A Few Clouds" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="~☁$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="~3$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_YELO"
-						DECORATION_COLOR_BG="$COLOR_BG_YELO"
-					# Partly Cloudy
-					elif [ "${DATA_ARRAY[0]}" == "Partly Cloudy" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
-					# Mostly Cloudy
-					elif [ "${DATA_ARRAY[0]}" == "Mostly Cloudy" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁~$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING="3~$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
-					# Overcast with Haze
-					elif [ "${DATA_ARRAY[0]}" == "Overcast with Haze" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁☁ᢆᢆ░3~"
-						else
-							DECORATION_STRING="333~~"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
-					# Overcast
-					elif [ "${DATA_ARRAY[0]}" == "Overcast" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁☁☁3~"
-						else
-							DECORATION_STRING="333~~"
-						fi
-						DECORATION_COLOR="$COLOR_GRAY"
-						DECORATION_COLOR_BG="$COLOR_BG_GRAY"
-					# Light Rain
-					elif [ "${DATA_ARRAY[0]}" == "Light Rain" ]; then
-						DECORATION_STRING='``'"''\\\|   "
-						DECORATION_COLOR="$COLOR_BLUE"
-						DECORATION_COLOR_BG="$COLOR_BG_BLUE"
-					# Rain
-					elif [ "${DATA_ARRAY[0]}" == "Rain" ]; then
-						DECORATION_STRING='````'"'''\\\\\|"
-						DECORATION_COLOR="$COLOR_BLUE"
-						DECORATION_COLOR_BG="$COLOR_BG_BLUE"
-					# Light Freezing Rain Fog/Mist
-					elif [ "${DATA_ARRAY[0]}" ==\
-						"Light Freezing Rain Fog/Mist" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="\`\`\\ᢆ☁~   "
-						else
-							DECORATION_STRING="\`\`\\\\3~   "
-						fi
-						DECORATION_COLOR="$COLOR_LBLU"
-						DECORATION_COLOR_BG="$COLOR_BG_LBLU"
-					# Fog/Mist
-					elif [ "${DATA_ARRAY[0]}" == "Fog/Mist" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="☁ᢆᢆ░~  "
-						else
-							DECORATION_STRING="3++#~  "
-						fi
-						DECORATION_COLOR="$COLOR_LGRY"
-						DECORATION_COLOR_BG="$COLOR_BG_LGRY"
-					# Light Snow
-					elif [ "${DATA_ARRAY[0]}" == "Light Snow" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING=".❄\"$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING='.`"'"$DISPLAY_ESCAPE_SPACE\
-$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
-					# Snow
-					elif [ "${DATA_ARRAY[0]}" == "Snow" ]; then
-						if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
-							DECORATION_STRING="❄✲❄❅❆❈❉.\"$DISPLAY_ESCAPE_SPACE"
-						else
-							DECORATION_STRING='"`.'"$DISPLAY_ESCAPE_SPACE"
-						fi
-						DECORATION_COLOR="$COLOR_WHIT"
-						DECORATION_COLOR_BG="$COLOR_BG_WHIT"
-					# ???
-					else
+					DECORATION_STRING=${WEATHER_DECORATIONS[${DATA_ARRAY[0]}]}
+					DECORATION_COLOR=${WEATHER_COLORS[${DATA_ARRAY[0]}]}
+					DECORATION_COLOR_BG=${WEATHER_BG_COLORS[${DATA_ARRAY[0]}]}
+					if [ -z "$DECORATION_STRING" ]; then
 						DECORATION_STRING="?$DISPLAY_ESCAPE_SPACE"
+					fi
+					if [ -z "$DECORATION_COLOR" ]; then
 						DECORATION_COLOR="$COLOR_NORM"
+					fi
+					if [ -z "$DECORATION_COLOR_BG" ]; then
 						DECORATION_COLOR_BG="$COLOR_BG_NORM"
 					fi
 					LARGE_3=""
