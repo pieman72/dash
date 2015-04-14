@@ -549,7 +549,8 @@ if [ "$SHOW_MATRIX" = 1 ]; then
 	fi
 fi
 if [ "$SHOW_NEWS" = 1 ]; then
-	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "1800")
+	NEWS_SOURCES=$(load_config "NEWS_SOURCES" "http://harveyserv.ath.cx/news")
+	NEWS_SECONDS_PER_POLL=$(load_config "NEWS_SECONDS_PER_POLL" "32400")
 fi
 if [ "$SHOW_STATS" = 1 ]; then
 	# Get INI values
@@ -610,7 +611,7 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Partly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Mostly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE"
-		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]"☁ᢆ░3~\
+		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]="☁ᢆ░3~\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Overcast with Haze"]="☁☁ᢆᢆ░3~"
 		WEATHER_DECORATIONS["Overcast"]="☁☁☁3~"
@@ -1260,7 +1261,40 @@ $NEW_CHAR
 		if [ "$CUR_SECT" == 'N' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
 			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA="---"
+				OLDIFS=$IFS
+				IFS=";"
+				SOURCE_ARRAY=($NEWS_SOURCES)
+				IFS=$OLDIFS
+				NEW_DATA=${#SOURCE_ARRAY[@]}
+				for i in `seq 0 $(( ${#SOURCE_ARRAY[@]} ))`; do
+					URL=${SOURCE_ARRAY[i]}
+					FEED=`wget -q -O- "$URL" | tr -d "\n\r\t" |\
+						sed "s/[ ]\+/ /" | sed "s/<item>/\n<item>/g"`
+					OLDIFS=$IFS
+					IFS=$'\n'
+					FEED=($(grep "<item[^>]*>.*</item>" <<< "$FEED"))
+					NEW_DATA=$NEW_DATA$(echo -e "\u05")${#FEED[@]}
+					for i in `seq 0 $(( ${#FEED[@]} - 1 ))`; do
+						ENTRY=${FEED[$i]}
+						D_title=$(grep -oPm1 "(?<=<title>)[^<]*"\
+							<<< "$ENTRY")
+						D_link=$(grep -oPm1 "(?<=<link>)[^<]*"\
+							<<< "$ENTRY")
+						D_description=$(grep -oPm1 "(?<=<description>)[^<]*"\
+							<<< "$ENTRY")
+						D_date=$(grep -oPm1 "(?<=[<:]date>)[^<]*"\
+							<<< "$ENTRY")
+						D_pubDate=$(grep -oPm1 "(?<=[<:]pubDate>)[^<]*"\
+							<<< "$ENTRY")
+						D_date=${D_date:-$D_pubDate};
+						NEW_DATA=$NEW_DATA$(echo -e "\u07")
+						NEW_DATA=$NEW_DATA$D_title$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_link$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$D_description
+					done
+					IFS=$OLDIFS
+				done
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -1270,7 +1304,7 @@ $NEW_CHAR
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=";"
+				IFS=$(echo -e "\u05")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -1296,6 +1330,45 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 $DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
 					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
 $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+
+					# Iterate through sources
+					LINE=1
+					for i in `seq 1 ${DATA_ARRAY[0]}`; do
+						SOURCE_DATA=${DATA_ARRAY[$i]}
+						OLDIFS=$IFS
+						IFS=$(echo -e "\u07")
+						ARTICLE_ARRAY=($SOURCE_DATA)
+						IFS=$OLDIFS
+
+						# Iterate through articles
+						for j in `seq 1 ${ARTICLE_ARRAY[0]}`; do
+							if [ "$LINE" -ge "$((CUR_ROWS-5))" ];then break; fi
+							ARTICLE_DATA=${ARTICLE_ARRAY[$j]}
+							OLDIFS=$IFS
+							IFS=$(echo -e "\u06")
+							PARTS_ARRAY=($ARTICLE_DATA)
+							IFS=$OLDIFS
+
+							NEW_DRAW[((++LINE))]=$(truncate\
+								"${PARTS_ARRAY[0]} | ${PARTS_ARRAY[2]}"\
+								$CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(truncate\
+								"${PARTS_ARRAY[3]}" $CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(truncate\
+								"${PARTS_ARRAY[1]}" $CUR_COLS)
+							((++LINE))
+						done
+					done
+
+					# Row N-2 shows the name of the observatory
+					NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
+						"["$COLOR_ORNG$COLOR_ULINE\
+"TODO$COLOR_ULINE_OFF: News Sources"$COLOR_RESET"]" $CUR_COLS)" $CUR_COLS)
+
+					# Row N-1 shows the update timestamp
+					NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
+						"$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
+"TODO$COLOR_ULINE_OFF: News URLs" $CUR_COLS)
 				fi
 			fi
 		fi
