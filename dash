@@ -229,22 +229,6 @@ function handleExit(){
 }
 
 # Output formatting functions
-function center(){
-	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
-	if [ "$LEN" -lt "$2" ]; then
-		printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
-	else
-		echo "$1"
-	fi
-}
-function truncate(){
-	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
-	if [ "$LEN" -gt "$2" ];then
-		echo -n "${1:0:$(( $2 - 3))}..."
-	else
-		echo -n "$1"
-	fi
-}
 function extend(){
 	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
 	if [ "$LEN" -lt "$2" ];then
@@ -261,8 +245,27 @@ function extendl(){
 		echo -n "$1"
 	fi
 }
+function center(){
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
+	if [ "$LEN" -lt "$2" ]; then
+		printf "%*s%s\n" $(( ($2 - $LEN + 1) / 2)) " " "$1"
+	else
+		echo "$1"
+	fi
+}
+function truncate(){
+	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
+	if [ "$LEN" -gt "$2" ];then
+		echo -n "${1:0:$(( $2 - 3))}..."
+	else
+		echo -n "$1"
+	fi
+}
 function centerex(){
 	echo "$(extend "$(center "$1" $2)" $2)"
+}
+function truncatex(){
+	echo "$(extend "$(truncate "$1" $2)" $2)"
 }
 function repeat(){
 	LEN=$(echo -en "$1" | sed "s/[^m]*m//g" | wc -m)
@@ -432,6 +435,28 @@ function GCD(){
 		REM=$((NUM%DEN))
 	done
 	echo $DEN
+}
+function strip_html(){
+	if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+		HTENT_DASH="—"
+		HTENT_APOS="’"
+	else
+		HTENT_DASH="-"
+		HTENT_APOS="'"
+	fi
+	PAIRED_TAGS="script\|style"
+	WRAP_TAGS="a\|p\|span"
+	SOLO_TAGS="br\|img"
+	echo "$1"\
+		| sed "s/&amp;/\&/g"\
+		| sed "s/&lt;/</g"\
+		| sed "s/&gt;/>/g"\
+		| sed "s/&nbsp;/ /g"\
+		| sed "s/&#8212;/$HTENT_DASH/g"\
+		| sed "s/&#8217;/$HTENT_APOS/g"\
+		| sed "s/<\($PAIRED_TAGS\)[^>]*>[^<]*<\/\($PAIRED_TAGS\)[^>]*>//g"\
+		| sed "s/<\($WRAP_TAGS\)[^>]*>\([^<]*\)<\/\($WRAP_TAGS\)[^>]*>/\2/g"\
+		| sed "s/<\($SOLO_TAGS\)[^>]*\/[ ]*>//g"
 }
 
 # Handle CLI args
@@ -1286,7 +1311,8 @@ $NEW_CHAR
 							<<< "$ENTRY")
 						D_pubDate=$(grep -oPm1 "(?<=[<:]pubDate>)[^<]*"\
 							<<< "$ENTRY")
-						D_date=${D_date:-$D_pubDate};
+						D_date=$(date -d "${D_date:-$D_pubDate}" "+%s");
+						D_description=$(strip_html "$D_description")
 						NEW_DATA=$NEW_DATA$(echo -e "\u07")
 						NEW_DATA=$NEW_DATA$D_title$(echo -e "\u06")
 						NEW_DATA=$NEW_DATA$D_link$(echo -e "\u06")
@@ -1312,64 +1338,119 @@ $NEW_CHAR
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+				LINE=-1
 
-				# Smallest heights (3-10): just show most relevant info
+				# Determine headings and lines of content text
 				if [ "$CUR_ROWS" -lt 11 ]; then
-					NEW_DRAW[0]=" "
-
-				# Medium heights (11-25): add some formatting
+					LINES_OF_TEXT=0
 				elif [ "$CUR_ROWS" -lt 26 ]; then
-					# Row 0 has a heading
-					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"News\
+					NEW_DRAW[((++LINE))]=" $COLOR_GRAY["$COLOR_ULINE"News\
 $COLOR_ULINE_OFF]$COLOR_NORM"
-
-				# Largest heights (26+): the full Monty!
+					LINES_OF_TEXT=1
 				else
-					# Rows 0-1 have a heading
-					NEW_DRAW[0]=$COLOR_GRAY" News "\
+					NEW_DRAW[((++LINE))]=$COLOR_GRAY" News "\
 $DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
-					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+					NEW_DRAW[((++LINE))]=$DISPLAY_SEPARATOR_COLOR\
 $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+					LINES_OF_TEXT=3
+				fi
 
-					# Iterate through sources
-					LINE=1
-					for i in `seq 1 ${DATA_ARRAY[0]}`; do
-						SOURCE_DATA=${DATA_ARRAY[$i]}
+				# Determine number of articles per source
+				NUM_ARTICLES=$(( (CUR_ROWS+${DATA_ARRAY[0]}-1)\
+					/ ${DATA_ARRAY[0]} ))
+
+				# Iterate through sources
+				for i in `seq 1 ${DATA_ARRAY[0]}`; do
+					if [ "$LINE" -ge "$((CUR_ROWS-6))" ];then break; fi
+					SOURCE_DATA=${DATA_ARRAY[$i]}
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u07")
+					ARTICLE_ARRAY=($SOURCE_DATA)
+					IFS=$OLDIFS
+
+					# Print the source name
+# TODO:
+					NEW_DRAW[((++LINE))]=$COLOR_ULINE$COLOR_ORNG\
+"TechCrunch"$COLOR_RESET
+
+					# Iterate through articles
+					for j in `seq 1 ${ARTICLE_ARRAY[0]}`; do
+						if [ "$LINE" -ge "$(( CUR_ROWS-(LINES_OF_TEXT+4) ))" ]\
+								|| [ "$j" -gt "$NUM_ARTICLES" ]; then
+							break;
+						fi
+						ARTICLE_DATA=${ARTICLE_ARRAY[$j]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u07")
-						ARTICLE_ARRAY=($SOURCE_DATA)
+						IFS=$(echo -e "\u06")
+						INFO_ARRAY=($ARTICLE_DATA)
 						IFS=$OLDIFS
 
-						# Iterate through articles
-						for j in `seq 1 ${ARTICLE_ARRAY[0]}`; do
-							if [ "$LINE" -ge "$((CUR_ROWS-5))" ];then break; fi
-							ARTICLE_DATA=${ARTICLE_ARRAY[$j]}
-							OLDIFS=$IFS
-							IFS=$(echo -e "\u06")
-							PARTS_ARRAY=($ARTICLE_DATA)
-							IFS=$OLDIFS
+						# Get the date
+						ARTICLE_AGE=$(( $(date +%s) - ${INFO_ARRAY[2]} ))
+						if [ "$ARTICLE_AGE" -gt 31536000 ]; then
+							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}" +%F)
+							DATE_COLOR=$COLOR_HEAT_0
+						elif [ "$ARTICLE_AGE" -gt 5184000 ]; then
+							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
+								'+%_m/%d')
+							DATE_COLOR=$COLOR_HEAT_1
+						elif [ "${INFO_ARRAY[2]}" -lt\
+								"$(date -d 'today 00:00:00' +%s)" ]; then
+							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
+								'+%b %e')
+							DATE_COLOR=$COLOR_HEAT_2
+						elif [ "$ARTICLE_AGE" -gt 300 ]; then
+							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
+								'+%l:%M%P')
+							DATE_COLOR=$COLOR_HEAT_3
+						elif [ "$ARTICLE_AGE" -gt 120 ]; then
+							DATE_STRING="$(( ARTICLE_AGE/60 )) minutes ago"
+							DATE_COLOR=$COLOR_HEAT_4
+						elif [ "$ARTICLE_AGE" -gt 60 ]; then
+							DATE_STRING="1 minute ago"
+							DATE_COLOR=$COLOR_HEAT_5
+						else
+							DATE_STRING="just now"
+							DATE_COLOR=$COLOR_HEAT_6
+						fi
 
-							NEW_DRAW[((++LINE))]=$(truncate\
-								"${PARTS_ARRAY[0]} | ${PARTS_ARRAY[2]}"\
-								$CUR_COLS)
-							NEW_DRAW[((++LINE))]=$(truncate\
-								"${PARTS_ARRAY[3]}" $CUR_COLS)
-							NEW_DRAW[((++LINE))]=$(truncate\
-								"${PARTS_ARRAY[1]}" $CUR_COLS)
-							((++LINE))
+						# Show the title and date
+						NEW_DRAW[((++LINE))]=$COLOR_BOLD$(truncatex\
+							"${INFO_ARRAY[0]}"\
+							"$(( CUR_COLS - ${#DATE_STRING} - 1 ))"\
+						)$COLOR_BOLD_OFF" "$DATE_COLOR$DATE_STRING$COLOR_RESET
+
+						# Show any content lines
+						CONTENT=${INFO_ARRAY[3]}
+						for k in `seq 0 $(( LINES_OF_TEXT - 1 ))`; do
+							if [ "${#CONTENT}" -gt "$CUR_COLS" ]; then
+								NEW_DRAW[((++LINE))]=$(echo\
+									"${CONTENT:0:$CUR_COLS}"\
+									| sed "s/^\(.*\)[ ][^ ]*$/\1/")
+								CONTENT=${CONTENT:$(( ${#NEW_DRAW[$LINE]}+1 ))}
+							else
+								NEW_DRAW[((++LINE))]=${CONTENT:0:$CUR_COLS}
+							fi
 						done
-					done
 
-					# Row N-2 shows the name of the observatory
-					NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
-						"["$COLOR_ORNG$COLOR_ULINE\
+						# Show the article link
+						NEW_DRAW[((++LINE))]=$COLOR_BLUE$(truncate\
+							"${INFO_ARRAY[1]}" $CUR_COLS)$COLOR_RESET
+
+						# A blank line
+						((++LINE))
+					done
+				done
+
+				# Row N-2 shows the name of the news source
+				NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
+					"["$COLOR_ORNG$COLOR_ULINE\
 "TODO$COLOR_ULINE_OFF: News Sources"$COLOR_RESET"]" $CUR_COLS)" $CUR_COLS)
 
-					# Row N-1 shows the update timestamp
-					NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
-						"$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
+				# Row N-1 shows the update timestamp
+				NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
+					"$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
 "TODO$COLOR_ULINE_OFF: News URLs" $CUR_COLS)
-				fi
 			fi
 		fi
 
