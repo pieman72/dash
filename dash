@@ -1291,16 +1291,17 @@ $NEW_CHAR
 				SOURCE_ARRAY=($NEWS_SOURCES)
 				IFS=$OLDIFS
 				NEW_DATA=${#SOURCE_ARRAY[@]}
-				for i in `seq 0 $(( ${#SOURCE_ARRAY[@]} ))`; do
-					URL=${SOURCE_ARRAY[i]}
-					FEED=`wget -q -O- "$URL" | tr -d "\n\r\t" |\
-						sed "s/[ ]\+/ /" | sed "s/<item>/\n<item>/g"`
+				for i in `seq 0 $(( ${#SOURCE_ARRAY[@]}-1 ))`; do
+					FEED=`wget -q -O- --header='Accept: application/rss+xml'\
+						"${SOURCE_ARRAY[$i]}"\
+						| tr -d "\n\r\t"\
+						| sed "s/[ ]\+/ /" | sed "s/<item>/\n<item>/g"`
 					OLDIFS=$IFS
 					IFS=$'\n'
 					FEED=($(grep "<item[^>]*>.*</item>" <<< "$FEED"))
 					NEW_DATA=$NEW_DATA$(echo -e "\u05")${#FEED[@]}
-					for i in `seq 0 $(( ${#FEED[@]} - 1 ))`; do
-						ENTRY=${FEED[$i]}
+					for j in `seq 0 $(( ${#FEED[@]} - 1 ))`; do
+						ENTRY=${FEED[$j]}
 						D_title=$(grep -oPm1 "(?<=<title>)[^<]*"\
 							<<< "$ENTRY")
 						D_link=$(grep -oPm1 "(?<=<link>)[^<]*"\
@@ -1342,26 +1343,33 @@ $NEW_CHAR
 
 				# Determine headings and lines of content text
 				if [ "$CUR_ROWS" -lt 11 ]; then
+					LINES_OF_HEADER=0
 					LINES_OF_TEXT=0
 				elif [ "$CUR_ROWS" -lt 26 ]; then
 					NEW_DRAW[((++LINE))]=" $COLOR_GRAY["$COLOR_ULINE"News\
 $COLOR_ULINE_OFF]$COLOR_NORM"
+					LINES_OF_HEADER=1
 					LINES_OF_TEXT=1
 				else
 					NEW_DRAW[((++LINE))]=$COLOR_GRAY" News "\
 $DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
 					NEW_DRAW[((++LINE))]=$DISPLAY_SEPARATOR_COLOR\
 $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+					LINES_OF_TEXT=2
 					LINES_OF_TEXT=3
 				fi
 
 				# Determine number of articles per source
-				NUM_ARTICLES=$(( (CUR_ROWS+${DATA_ARRAY[0]}-1)\
-					/ ${DATA_ARRAY[0]} ))
+				ARTICLE_SIZE=$(( ${DATA_ARRAY[0]} * (3+LINES_OF_TEXT) ))
+				NUM_ARTICLES=$(( ( (CUR_ROWS+ARTICLE_SIZE)\
+					- (LINES_OF_HEADER + 3 + ${DATA_ARRAY[0]}))\
+					/ ARTICLE_SIZE ))
 
 				# Iterate through sources
 				for i in `seq 1 ${DATA_ARRAY[0]}`; do
-					if [ "$LINE" -ge "$((CUR_ROWS-6))" ];then break; fi
+					if [ "$LINE" -ge "$((CUR_ROWS-(LINES_OF_TEXT+5)))" ]; then
+						break
+					fi
 					SOURCE_DATA=${DATA_ARRAY[$i]}
 					OLDIFS=$IFS
 					IFS=$(echo -e "\u07")
