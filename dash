@@ -438,9 +438,11 @@ function GCD(){
 }
 function strip_html(){
 	if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
+		HTENT_SNGL_QUOT="'"
 		HTENT_DASH="—"
 		HTENT_APOS="’"
 	else
+		HTENT_SNGL_QUOT="'"
 		HTENT_DASH="-"
 		HTENT_APOS="'"
 	fi
@@ -452,6 +454,7 @@ function strip_html(){
 		| sed "s/&lt;/</g"\
 		| sed "s/&gt;/>/g"\
 		| sed "s/&nbsp;/ /g"\
+		| sed "s/&#0\?39;/$HTENT_SNGL_QUOT/g"\
 		| sed "s/&#8212;/$HTENT_DASH/g"\
 		| sed "s/&#8217;/$HTENT_APOS/g"\
 		| sed "s/<\($PAIRED_TAGS\)[^>]*>[^<]*<\/\($PAIRED_TAGS\)[^>]*>//g"\
@@ -608,8 +611,10 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	WEATHER_COLORS["Overcast"]=$COLOR_GRAY
 	WEATHER_COLORS["Light Rain"]=$COLOR_BLUE
 	WEATHER_COLORS["Rain"]=$COLOR_BLUE
+	WEATHER_COLORS["Light Rain Fog/Mist"]=$COLOR_LGRY
 	WEATHER_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_LBLU
 	WEATHER_COLORS["Fog/Mist"]=$COLOR_LGRY
+	WEATHER_COLORS["Fog"]=$COLOR_LGRY
 	WEATHER_COLORS["Light Snow"]=$COLOR_WHIT
 	WEATHER_COLORS["Snow"]=$COLOR_WHIT
 	WEATHER_DEGREE_SYMBOL="°"
@@ -623,8 +628,10 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	WEATHER_BG_COLORS["Overcast"]=$COLOR_BG_GRAY
 	WEATHER_BG_COLORS["Light Rain"]=$COLOR_BG_BLUE
 	WEATHER_BG_COLORS["Rain"]=$COLOR_BG_BLUE
+	WEATHER_BG_COLORS["Light Rain Fog/Mist"]=$COLOR_BG_LGRY
 	WEATHER_BG_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_BG_LBLU
 	WEATHER_BG_COLORS["Fog/Mist"]=$COLOR_BG_LGRY
+	WEATHER_BG_COLORS["Fog"]=$COLOR_BG_LGRY
 	WEATHER_BG_COLORS["Light Snow"]=$COLOR_BG_WHIT
 	WEATHER_BG_COLORS["Snow"]=$COLOR_BG_WHIT
 	WEATHER_DEGREE_SYMBOL="°"
@@ -642,8 +649,10 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Overcast"]="☁☁☁3~"
 		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
 		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
+		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\ᢆ☁~   "
 		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\ᢆ☁~   "
 		WEATHER_DECORATIONS["Fog/Mist"]="☁ᢆᢆ░~  "
+		WEATHER_DECORATIONS["Fog"]="☁ᢆ░~ "
 		WEATHER_DECORATIONS["Light Snow"]=".❄$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DECORATIONS["Snow"]="❄✲❄❅❆❈❉.$DISPLAY_ESCAPE_SPACE"'"'
@@ -661,8 +670,10 @@ $DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Overcast"]="333~~"
 		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
 		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
-		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\\\3~   "
+		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\3+#~  "
+		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\3+#~  "
 		WEATHER_DECORATIONS["Fog/Mist"]="3++#~  "
+		WEATHER_DECORATIONS["Fog"]="3+#~ "
 		WEATHER_DECORATIONS["Light Snow"]=".\`$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DECORATIONS["Snow"]="\`.$DISPLAY_ESCAPE_SPACE"'"'
@@ -1457,7 +1468,7 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 
 				# Row N-1 shows the update timestamp
 				NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
-					"$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
+					"@$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
 "TODO$COLOR_ULINE_OFF: News URLs" $CUR_COLS)
 			fi
 		fi
@@ -1670,8 +1681,8 @@ $(repeat "$DISPLAY_SEPARATOR_H" 14)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					NEW_DRAW[((++g))]=$(center\
 						"* "$COLOR_GRAY$COLOR_ULINE"General"$COLOR_RESET" *"\
 						$CUR_COLS)
-					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:$COLOR_RESET \
-${DATA_ARRAY[1]}"
+					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:"$COLOR_RESET" "\
+$(truncate "${DATA_ARRAY[1]}" $(( CUR_COLS-11 )))
 					if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
 						NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
 ${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hrs, ${DATA_ARRAY[5]} Mins"
