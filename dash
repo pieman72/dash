@@ -1307,10 +1307,22 @@ $NEW_CHAR
 						"${SOURCE_ARRAY[$i]}"\
 						| tr -d "\n\r\t"\
 						| sed "s/[ ]\+/ /" | sed "s/<item>/\n<item>/g"`
+					CHANNEL=$(grep "<channel[^>]*>" <<< "$FEED")
+					D_channelTitle=$(grep -oPm1 "(?<=<title>)[^<]*"\
+						<<< "$CHANNEL" | head -n 1)
+					D_channelLink=$(grep -oPm1 "(?<=<link>)[^<]*"\
+						<<< "$CHANNEL" | head -n 1)
+					D_channelDate=$(grep -oPm1 "(?<=<lastBuildDate>)[^<]*"\
+						<<< "$CHANNEL" | head -n 1)
+					D_channelDate=$(date -d "${D_channelDate:-$D_channelDate}"\
+						"+%s");
 					OLDIFS=$IFS
 					IFS=$'\n'
 					FEED=($(grep "<item[^>]*>.*</item>" <<< "$FEED"))
-					NEW_DATA=$NEW_DATA$(echo -e "\u05")${#FEED[@]}
+					NEW_DATA=$NEW_DATA$(echo -e "\u05")$D_channelTitle
+					NEW_DATA=$NEW_DATA$(echo -e "\u06")$D_channelLink
+					NEW_DATA=$NEW_DATA$(echo -e "\u06")$D_channelDate
+					NEW_DATA=$NEW_DATA$(echo -e "\u06")${#FEED[@]}
 					for j in `seq 0 $(( ${#FEED[@]} - 1 ))`; do
 						ENTRY=${FEED[$j]}
 						D_title=$(grep -oPm1 "(?<=<title>)[^<]*"\
@@ -1377,6 +1389,8 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					/ ARTICLE_SIZE ))
 
 				# Iterate through sources
+                FIRST_SOURCE=""
+                FIRST_LINK=""
 				for i in `seq 1 ${DATA_ARRAY[0]}`; do
 					if [ "$LINE" -ge "$((CUR_ROWS-(LINES_OF_TEXT+5)))" ]; then
 						break
@@ -1387,13 +1401,23 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					ARTICLE_ARRAY=($SOURCE_DATA)
 					IFS=$OLDIFS
 
-					# Print the source name
-# TODO:
-					NEW_DRAW[((++LINE))]=$COLOR_ULINE$COLOR_ORNG\
-"TechCrunch"$COLOR_RESET
+					# Print the source meta-data
+					OLDIFS=$IFS
+					IFS=$(echo -e "\u06")
+					SOURCE_META=(${ARTICLE_ARRAY[0]})
+					IFS=$OLDIFS
+					NEW_DRAW[((++LINE))]=$COLOR_ULINE$COLOR_ORNG$(truncate\
+							"${SOURCE_META[0]}" "$(($CUR_COLS - 13))"\
+						)$COLOR_ULINE_OFF$COLOR_ORNG" - "$(date -d\
+							"@${SOURCE_META[2]}" "+%F"\
+						)$COLOR_RESET
+					if [ "$i" -eq "1" ]; then
+						FIRST_SOURCE=${SOURCE_META[0]}
+						FIRST_LINK=${SOURCE_META[1]}
+					fi
 
 					# Iterate through articles
-					for j in `seq 1 ${ARTICLE_ARRAY[0]}`; do
+					for j in `seq 1 ${SOURCE_META[3]}`; do
 						if [ "$LINE" -ge "$(( CUR_ROWS-(LINES_OF_TEXT+4) ))" ]\
 								|| [ "$j" -gt "$NUM_ARTICLES" ]; then
 							break;
@@ -1463,13 +1487,12 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 
 				# Row N-2 shows the name of the news source
 				NEW_DRAW[$((CUR_ROWS-2))]=$(center "$(truncate\
-					"["$COLOR_ORNG$COLOR_ULINE\
-"TODO$COLOR_ULINE_OFF: News Sources"$COLOR_RESET"]" $CUR_COLS)" $CUR_COLS)
+					"["$COLOR_ORNG$FIRST_SOURCE$COLOR_RESET"]" $CUR_COLS)"\
+					$CUR_COLS)
 
 				# Row N-1 shows the update timestamp
 				NEW_DRAW[$((CUR_ROWS-1))]=$(center "Updated: $(date -d\
-					"@$NEW_DATE" "+%I:%M%p") | "$COLOR_ULINE\
-"TODO$COLOR_ULINE_OFF: News URLs" $CUR_COLS)
+					"@$NEW_DATE" "+%I:%M%p") | "$FIRST_LINK $CUR_COLS)
 			fi
 		fi
 
