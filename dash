@@ -4,7 +4,7 @@
 STARTED=0
 TRAPS_SET=0
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
-[ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="~/.dash.ini"
+[ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="/home/`whoami`/.dash.ini"
 if [ -f "$DASH_INI_PATH" ]; then
 	function load_config(){
 		RET="$(awk -F "\\\\s*=\\\\s*" "/^$1=/"' {print $2}'\
@@ -20,6 +20,9 @@ DBG=$(load_config "DBG" '0')
 REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '120')
 SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
 SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
+GOOGLE_OAUTH_CLIENT_ID=$(load_config "GOOGLE_OAUTH_CLIENT_ID" '')
+GOOGLE_OAUTH_CLIENT_SECRET=$(load_config "GOOGLE_OAUTH_CLIENT_SECRET" '')
+declare -A GOOGLE_OAUTH_TOKENS
 
 # Display configuration
 DISPLAY_ENCODING=$(load_config "DISPLAY_ENCODING" 'ASCII')
@@ -461,6 +464,77 @@ function strip_html(){
 		| sed "s/<\($WRAP_TAGS\)[^>]*>\([^<]*\)<\/\($WRAP_TAGS\)[^>]*>/\2/g"\
 		| sed "s/<\($SOLO_TAGS\)[^>]*\/[ ]*>//g"
 }
+function GoogleOAuth2(){
+	# From https://github.com/soulseekah/bash-utils/tree/master/google-oauth2 #
+	# ======================================================================= #
+	# Create a token
+	if [ -z "${GOOGLE_OAUTH_TOKENS["$1","refresh"]}" ]; then
+		# Initiate an OAuth request
+		REQUEST=""
+		REQUEST=$REQUEST"client_id=$GOOGLE_OAUTH_CLIENT_ID"
+		REQUEST=$REQUEST"&scope=$1"
+		RESPONSE=$(curl --silent -d "$REQUEST"\
+			"https://accounts.google.com/o/oauth2/device/code")
+		ERROR=$(echo "$RESPONSE" | grep -m1 '"error"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		if [ "$ERROR" ]; then error "$ERROR"; return ""; fi
+
+		# Extract auth parameters
+		DEVICE_CODE=$(echo "$RESPONSE" | grep -m1 '"device_code"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		USER_CODE=$(echo "$RESPONSE" | grep -m1 '"user_code"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		URL=$(echo "$RESPONSE" | grep -m1 '"verification_url"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+
+		# Wait for user to submit consent
+		read -p "Go to '$COLOR_BLUE$COLOR_ULINE$URL$COLOR_RESET', "\
+"use code '$COLOR_PURP$USER_CODE$COLOR_RESET', "\
+"then come back here and press [Enter] here..."
+
+		# Make follow-up request
+		REQUEST=""
+		REQUEST=$REQUEST"client_id=$GOOGLE_OAUTH_CLIENT_ID"
+		REQUEST=$REQUEST"&client_secret=$GOOGLE_OAUTH_CLIENT_SECRET"
+		REQUEST=$REQUEST"&code=$DEVICE_CODE"
+		REQUEST=$REQUEST"&grant_type=http://oauth.net/grant_type/device/1.0"
+		RESPONSE=$(curl --silent -d "$REQUEST"\
+			"https://www.googleapis.com/oauth2/v3/token")
+		ERROR=$(echo "$RESPONSE" | grep -m1 '"error"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		if [ "$ERROR" ]; then error "$ERROR"; return ""; fi
+
+		# Extract the almighty tokens
+		ACCESS_TOKEN=$(echo "$RESPONSE" | grep -m1 '"access_token"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		REFRESH_TOKEN=$(echo "$RESPONSE" | grep -m1 '"refresh_token"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+
+	# Refresh a token
+	else
+		# Load the stored refresh token
+		REFRESH_TOKEN=${GOOGLE_OAUTH_TOKENS["$1","refresh"]}
+
+		# Submit a refresh request
+		REQUEST=""
+		REQUEST=$REQUEST"client_id=$GOOGLE_OAUTH_CLIENT_ID"
+		REQUEST=$REQUEST"&client_secret=$GOOGLE_OAUTH_CLIENT_SECRET"
+		REQUEST=$REQUEST"&refresh_token=$REFRESH_TOKEN"
+		REQUEST=$REQUEST"&grant_type=refresh_token"
+		RESPONSE=$(curl --silent -d "$REQUEST"\
+			"https://www.googleapis.com/oauth2/v3/token")
+		ERROR=$(echo "$RESPONSE" | grep -m1 '"error"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+		if [ "$ERROR" ]; then error "$ERROR"; return ""; fi
+
+		# Extract the new almighty token
+		ACCESS_TOKEN=$(echo $RESPONSE | grep -m1 '"access_token"'\
+			| sed 's/^[^:]*:\ *"\([^"]*\)".*$/\1/')
+	fi
+
+	# Return tokens
+	echo "$ACCESS_TOKEN:$REFRESH_TOKEN"
+}
 
 # Handle CLI args
 SHOW_HELP=0
@@ -520,7 +594,21 @@ fi
 
 # Additional configuration for individual sections
 if [ "$SHOW_CALENDAR" = 1 ]; then
-	CALENDAR_SECONDS_PER_POLL=$(load_config "CALENDAR_SECONDS_PER_POLL" "600")
+	# Get INI values
+	CALENDAR_SECONDS_PER_POLL=$(load_config "CALENDAR_SECONDS_PER_POLL" "3480")
+	CALENDAR_GOOGLE_CALENDARS=$(load_config "CALENDAR_GOOGLE_CALENDARS" "")
+	CALENDAR_GOOGLE_URL="https://www.googleapis.com/calendar/v3"
+	CALENDAR_GOOGLE_SCOPE="https://www.googleapis.com/auth/calendar.readonly"
+	CALENDAR_MONTHS=("January" "February" "March" "April" "May" "June" "July"\
+		"August" "September" "October" "November" "December")
+	CALENDAR_MONTHS_SHORT=("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug"\
+		"Sep" "Oct" "Nov" "Dec")
+	CALENDAR_DAYS=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday"\
+		"Saturday")
+	CALENDAR_DAYS_SHORT=("Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat")
+	CALENDAR_ORDINALS=("th" "st" "nd" "rd" "th" "th" "th" "th" "th" "th")
+	CALENDAR_MONTH_OFFSETS=(0 3 3 6 1 4 6 2 5 0 3 5)
+	CALENDAR_MONTH_LENGTHS=(31 28 31 30 31 30 31 31 30 31 30 31)
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
 	# Get INI values
@@ -841,6 +929,12 @@ function render_sections(){
 
 			# If the drawing is old, redo it
 			if [ "$SIZE_FRESH" = 0 ]; then
+				# Collect date parts
+				TODAY_YEAR=$(date '+%Y')
+				TODAY_MONTH=$(date '+%m')
+				TODAY_DAY=$(date '+%d')
+				TODAY_DOW=$(date '+%w')
+
 				# Expand the data into an array
 				OLDIFS=$IFS
 				IFS=";"
@@ -851,32 +945,87 @@ function render_sections(){
 				NEW_DRAW=($DISPLAY_ESCAPE_SPACE$(printf\
 					" $DISPLAY_ESCAPE_SPACE%.0s" $(seq 2 $CUR_ROWS)))
 				for i in `seq 0 $((CUR_ROWS-1))`; do NEW_DRAW[$i]=" "; done
+				LINE=-1
 
-				# Smallest heights (3-10): just show most relevant info
+				# Determine heading
 				if [ "$CUR_ROWS" -lt 11 ]; then
-					NEW_DRAW[0]=" "
-
-				# Medium heights (11-25): add some formatting
+					:
 				elif [ "$CUR_ROWS" -lt 26 ]; then
-					# Row 0 has a heading
-					NEW_DRAW[0]=" $COLOR_GRAY["$COLOR_ULINE"Calendar\
+					NEW_DRAW[((++LINE))]=" $COLOR_GRAY["$COLOR_ULINE"Calendar\
 $COLOR_ULINE_OFF]$COLOR_NORM"
-
-				# Largest heights (26+): the full Monty!
 				else
-					# Rows 0-1 have a heading
-					NEW_DRAW[0]=$COLOR_GRAY" Calendar "\
+					NEW_DRAW[((++LINE))]=$COLOR_GRAY" Calendar "\
 $DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
-					NEW_DRAW[1]=$DISPLAY_SEPARATOR_COLOR\
+					NEW_DRAW[((++LINE))]=$DISPLAY_SEPARATOR_COLOR\
 $(repeat "$DISPLAY_SEPARATOR_H" 10)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				fi
+
+				# First row is today's date
+				DAY=$(date "+%e" | tr -d ' ')
+				ORDINAL=${CALENDAR_ORDINALS[$(( (DAY/10==1) ? 0 : (DAY%10) ))]}
+				NEW_DRAW[((++LINE))]=$(center\
+					"$COLOR_PURP$(date "+%A, %B %e$ORDINAL %Y")$COLOR_RESET"\
+					$CUR_COLS)
+
+				# Space permitting, show a full calendar
+				if [ "$(( CUR_ROWS-LINE ))" -gt 10 ]; then
+					MONTH_DAY=$(( TODAY_DAY%7 - TODAY_DOW ))
+					if [ "$MONTH_DAY" -gt 0 ]; then
+						MONTH_DAY=$(( MONTH_DAY - 7 ))
+					fi
+					NEW_DRAW[((++LINE))]=$(center \
+$COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
+					DATE_ROW=""
+					for i in `seq 0 41`; do
+						DATE_ROW=$DATE_ROW" ";
+						if [ "$MONTH_DAY" -gt 0 ]; then
+							DATE_ROW=$DATE_ROW$(printf "%2s" "$MONTH_DAY")
+						else
+							DATE_ROW=$DATE_ROW"  "
+						fi
+						((++MONTH_DAY))
+						if [ "${CALENDAR_MONTH_LENGTHS[$TODAY_MONTH]}" -lt\
+								"$MONTH_DAY" ]; then
+							NEW_DRAW[((++LINE))]=$(center\
+								"$DATE_ROW" $CUR_COLS)
+							break;
+						fi
+						if [ "$MONTH_DAY" -eq "$TODAY_DAY" ]; then
+							if [ $(( i%7 )) -eq 6 ]; then
+								NEW_DRAW[((++LINE))]=$(center\
+								"$DATE_ROW" $CUR_COLS)
+								DATE_ROW=""
+							else
+								DATE_ROW=$DATE_ROW" "
+							fi
+							DATE_ROW=$DATE_ROW"$COLOR_BG_PURP$COLOR_BLCK"
+						else
+							DATE_ROW=$DATE_ROW"$COLOR_BG_NORM$COLOR_NORM"
+							if [ $(( i%7 )) -eq 6 ]; then
+								NEW_DRAW[((++LINE))]=$(center\
+								"$DATE_ROW" $CUR_COLS)
+								DATE_ROW=""
+							else
+								DATE_ROW=$DATE_ROW" "
+							fi
+						fi
+					done
+					((++LINE))
+				fi
+
+				# Rows (n-2)-(n-1) show an update timestamp
+				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+					"["$COLOR_PURP$COLOR_ULINE"TODO"$COLOR_RESET"]" $CUR_COLS)
+				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
+					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | "\
+$COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 			fi
 		fi
 
 		# --- Email -----------------------------------------
 		if [ "$CUR_SECT" == 'E' ]; then
 			# If the data is old, download new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DATA_FRESH" == 0 ]; then
 				if [ "$EMAIL_SOURCE" == "Gmail" ]; then
 					URL="https://mail.google.com/mail/feed/atom"
 					FEED=$(curl -u "$EMAIL_USER:$EMAIL_PASS" --silent "$URL")
@@ -1123,6 +1272,10 @@ $COLOR_NORM $COLOR_ULINE$(truncate\
 				done
 
 				# Print the update date at the bottom
+				if [ "$CUR_ROWS" -gt 10 ]; then
+					NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
+						"[$COLOR_BLUE$EMAIL_USER$COLOR_RESET]" $CUR_COLS)
+				fi
 				SOURCE_STRING="mail"
 				if [ "$EMAIL_SOURCE" == "Gmail" ]; then
 					SOURCE_STRING="$COLOR_BLUE""G$COLOR_RED""m$COLOR_YELO"\
@@ -1131,17 +1284,13 @@ $COLOR_NORM $COLOR_ULINE$(truncate\
 				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
 					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | \
 $SOURCE_STRING" $CUR_COLS)
-				if [ "$CUR_ROWS" -gt 10 ]; then
-					NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
-						"[ $COLOR_BLUE$EMAIL_USER$COLOR_RESET ]" $CUR_COLS)
-				fi
 			fi
 		fi
 
 		# --- Matrix ----------------------------------------
 		if [ "$CUR_SECT" == 'M' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DATA_FRESH" == 0 ]; then
 				NEW_DATA="$(( CUR_COLS/MATRIX_CHAR_WIDTH ))"
 				for i in `seq 1 $NEW_DATA`; do
 					NEW_DATA=$NEW_DATA$(echo -e "\u07")
@@ -1296,7 +1445,7 @@ $NEW_CHAR
 		# --- News ------------------------------------------
 		if [ "$CUR_SECT" == 'N' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DATA_FRESH" == 0 ]; then
 				OLDIFS=$IFS
 				IFS=";"
 				SOURCE_ARRAY=($NEWS_SOURCES)
@@ -1497,9 +1646,11 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 		fi
 
 		# --- System Stats ----------------------------------
+# TODO: handle short uptimes
+#top - 07:21:19 up 11 min,  1 user,  load average: 0.01, 0.10, 0.12
 		if [ "$CUR_SECT" == 'S' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DATA_FRESH" == 0 ]; then
 				NEW_DATA=""
 
 				# Get the hostname
@@ -1983,7 +2134,7 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 		# --- Weather ---------------------------------------
 		if [ "$CUR_SECT" == 'W' ]; then
 			# If the data is old, download new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
+			if [ "$DATA_FRESH" == 0 ]; then
 				URL="http://www.weather.gov/xml/current_obs/"
 				DOWNLOAD=$(wget -q -O- "$URL$WEATHER_NOAA_STATION_CODE"".xml")
 				D_cred=$(grep -oPm1 "(?<=<credit_URL>)[^<]*"\
@@ -2299,7 +2450,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 		fi
 
 		# Get the correct data and date
-		if [ "$DATA_FRESH" = 0 ]; then
+		if [ "$DATA_FRESH" == 0 ]; then
 			if [ "$DBG" = 1 ]; then msg "New Data"; fi
 			DATA=$NEW_DATA
 			DATE=$NEW_DATE
