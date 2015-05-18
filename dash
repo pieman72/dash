@@ -464,6 +464,16 @@ function strip_html(){
 		| sed "s/<\($WRAP_TAGS\)[^>]*>\([^<]*\)<\/\($WRAP_TAGS\)[^>]*>/\2/g"\
 		| sed "s/<\($SOLO_TAGS\)[^>]*\/[ ]*>//g"
 }
+function extract_json_objects(){
+	DATA=$(echo "$1" | tr -d "\n")
+	if [ -n "$4" ]; then DATA=$(echo "$DATA"\
+		| sed "s/\"\($4\)\"\s*:\s*{\([^{}]*\)}/\"\1\": |\2|/g"); fi
+	OBJECTS=$(echo "$DATA" | grep -o "{[^{}]*}")
+	RESULTS=$(echo "$OBJECTS" | grep "\"$2\"\s*:\s*\"$3\"")
+	if [ -z "$OBJECTS" ]; then return; fi
+	REMAINDER=$(echo "$DATA" | sed "s/{[^{}]*}/\"object\"/g")
+	echo -e "$(extract_json_objects "$REMAINDER" "$2" "$3")\n$RESULTS"
+}
 function GoogleOAuth2(){
 	# From https://github.com/soulseekah/bash-utils/tree/master/google-oauth2 #
 	# ======================================================================= #
@@ -920,8 +930,114 @@ function render_sections(){
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" = 0 ]; then
-				NEW_DATA="---"
+# TODO:
+DATA_FRESH=0
+			if [ "$DATA_FRESH" == 0 ]; then
+				# If there are Google Calendars, fetch them
+				LIST=""
+				if [ "$CALENDAR_GOOGLE_CALENDARS" == "true" ]; then
+					# We need OAuth access
+					if [ "$STARTED" -ne 1 ]; then
+						echo "Google calendars require OAuth2 authentication:"
+					fi
+					SCOPE=$CALENDAR_GOOGLE_SCOPE
+					TOKENS_TEMP=$(GoogleOAuth2 "$SCOPE")
+					if [ -z "$TOKENS_TEMP" ]; then
+						error "OAuth2 failed.";
+					fi
+					echo
+					ACCESS_TOKEN=${TOKENS_TEMP%:*}
+					REFRESH_TOKEN=${TOKENS_TEMP#*:}
+					GOOGLE_OAUTH_TOKENS["$SCOPE","access"]=$ACCESS_TOKEN
+					GOOGLE_OAUTH_TOKENS["$SCOPE","refresh"]=$REFRESH_TOKEN
+
+					# Pull the list of all calendars
+					msg "Fetching calendars..."
+					NOW=$(date "+%s")
+					FEED="$(curl --silent\
+						-H "Authorization: Bearer $ACCESS_TOKEN"\
+						"$CALENDAR_GOOGLE_URL/users/me/calendarList")"
+					FEED=$(extract_json_objects "$FEED"\
+						"kind" "calendar#calendarListEntry")
+
+					# Arrayize the calendar list entries
+					OLDIFS=$IFS
+					IFS=$'\n'
+					CALENDARS=($FEED)
+
+					# Iterate through calendars
+					for i in `seq 0 $(( ${#CALENDARS[@]} - 1 ))`; do
+						# Dissect the calendar list entry and skip if hidden
+						ENTRY=${CALENDARS[$i]}
+						D_id=$(echo "$ENTRY" | sed\
+							's/^.*"id"\s*:\s*"\([^"]*\)".*$/\1/')
+						D_summary=$(echo "$ENTRY" | sed\
+							's/^.*"summary"\s*:\s*"\([^"]*\)".*$/\1/')
+						D_backgroundColor=$(echo "$ENTRY" | sed\
+							's/^.*"backgroundColor"\s*:\s*"\([^"]*\)".*$/\1/')
+						D_foregroundColor=$(echo "$ENTRY" | sed\
+							's/^.*"foregroundColor"\s*:\s*"\([^"]*\)".*$/\1/')
+						D_selected=$(echo "$ENTRY" | grep\
+							'"selected"\s*:\s*true')
+						if [ -z "$D_selected" ]; then continue; fi
+
+						# Fetch events from the calendar
+						msg "Fetching events for $D_summary ..."
+						Q=""
+						Q=$Q"singleEvents=true"
+						Q=$Q"&timeMin="$(date "+%FT%T%:z")
+						Q=$Q"&timeMax="$(date -d"@$((NOW+604800))" "+%FT%T%:z")
+						FEED="$(curl --silent\
+							-H "Authorization: Bearer $ACCESS_TOKEN"\
+							"$CALENDAR_GOOGLE_URL/calendars/$D_id/events?$Q")"
+						FEED=$(extract_json_objects "$FEED"\
+							"kind" "calendar#event" "start\|end")
+
+						# Arrayize the events
+						IFS=$'\n'
+						EVENTS=($FEED)
+
+						# Iterate through events
+						for j in `seq 0 $(( ${#EVENTS[@]} - 1 ))`; do
+							# Dissect the event and skip if tentative
+							ENTRY=${EVENTS[$i]}
+							LEAD='^.*"status"'
+							D_status=$(echo "$ENTRY" | grep '"status"'\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+							LEAD='^.*"summary"'
+							D_summary=$(echo "$ENTRY" | grep '"summary"'\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+							LEAD='^.*"location"'
+							D_location=$(echo "$ENTRY" | grep '"location"'\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+							LEAD='^.*"start"[^|]*|[^|]*"dateTime"'
+							D_start=$(echo "$ENTRY" | grep '"start"'\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+							D_start=$(date -d "$D_start" "+%s")
+							LEAD='^.*"end"[^|]*|[^|]*"dateTime"'
+							D_end=$(echo "$ENTRY" | grep '"end"'\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+							D_end=$(date -d "$D_end" "+%s")
+							if [ "$D_status" != "confirmed" ];then continue;fi
+
+							# Add the calendar parts to the data string
+							if [ "$j" -gt 0 ]; then LIST=$LIST"\n"; fi
+							LIST=$LIST$D_start" {"
+							LIST=$LIST$(echo -e "\u7")
+							LIST=$LIST$D_backgroundColor$(echo -e "\u6")
+							LIST=$LIST$D_foregroundColor$(echo -e "\u6")
+							LIST=$LIST$D_summary$(echo -e "\u6")
+							LIST=$LIST$D_location$(echo -e "\u6")
+							LIST=$LIST$D_start$(echo -e "\u6")
+							LIST=$LIST$D_end
+						done
+					done
+
+					# Append the list of events to the data string
+					NEW_DATA=$NEW_DATA$(echo -e "$LIST"\
+						| sort -k1d | sed "s/^[0-9]* {//g" | tr -d "\n")
+					IFS=$OLDIFS
+				fi
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -937,7 +1053,7 @@ function render_sections(){
 
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=";"
+				IFS=$(echo -e "\u7")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -949,15 +1065,17 @@ function render_sections(){
 
 				# Determine heading
 				if [ "$CUR_ROWS" -lt 11 ]; then
-					:
+					LINES_PER_EVENT=1
 				elif [ "$CUR_ROWS" -lt 26 ]; then
 					NEW_DRAW[((++LINE))]=" $COLOR_GRAY["$COLOR_ULINE"Calendar\
 $COLOR_ULINE_OFF]$COLOR_NORM"
+					LINES_PER_EVENT=2
 				else
 					NEW_DRAW[((++LINE))]=$COLOR_GRAY" Calendar "\
 $DISPLAY_SEPARATOR_COLOR$DISPLAY_SEPARATOR_V$COLOR_RESET
 					NEW_DRAW[((++LINE))]=$DISPLAY_SEPARATOR_COLOR\
 $(repeat "$DISPLAY_SEPARATOR_H" 10)$DISPLAY_SEPARATOR_BR$COLOR_RESET
+					LINES_PER_EVENT=3
 				fi
 
 				# First row is today's date
@@ -1013,6 +1131,38 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 					((++LINE))
 				fi
 
+				# Iterate through calendar events
+				NEW_DRAW[((++LINE))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
+"Upcoming Events"$COLOR_RESET" *" $CUR_COLS)
+				for i in `seq 0 $(( ${#DATA_ARRAY[@]} - 1 ))`; do
+					# Break when we run out of room
+					if [ "$((CUR_ROWS - LINE - LINES_PER_EVENT))" -lt 4 ]; then
+						break;
+					fi
+					EVENT=${DATA_ARRAY[$i]}
+
+					# Get the event parts
+					IFS=$(echo -e "\u6")
+					PARTS=($EVENT)
+#color
+#color
+#name
+#place
+#start
+#end
+					if [ "$LINES_PER_EVENT" -eq 1 ]; then
+						DESC=${PARTS[2]}
+						NEW_DRAW[((++LINE))]=$DESC
+					elif [ "$LINES_PER_EVENT" -eq 2 ]; then
+						DESC=${PARTS[2]}
+						NEW_DRAW[((++LINE))]=$DESC
+					else
+						DESC=${PARTS[2]}
+						NEW_DRAW[((++LINE))]=$DESC
+					fi
+				done
+				IFS=$OLDIFS
+
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
 					"["$COLOR_PURP$COLOR_ULINE"TODO"$COLOR_RESET"]" $CUR_COLS)
@@ -1047,11 +1197,11 @@ $COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 							<<< "$ENTRY")" +%s)
 						D_content=$(grep -oPm1 "(?<=<summary>)[^<]*"\
 							<<< "$ENTRY")
-						NEW_DATA=$NEW_DATA$(echo -e "\u07")
-						NEW_DATA=$NEW_DATA$D_senderName$(echo -e "\u06")
-						NEW_DATA=$NEW_DATA$D_senderEmail$(echo -e "\u06")
-						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u06")
-						NEW_DATA=$NEW_DATA$D_subject$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$(echo -e "\u7")
+						NEW_DATA=$NEW_DATA$D_senderName$(echo -e "\u6")
+						NEW_DATA=$NEW_DATA$D_senderEmail$(echo -e "\u6")
+						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u6")
+						NEW_DATA=$NEW_DATA$D_subject$(echo -e "\u6")
 						NEW_DATA=$NEW_DATA$D_content
 					done
 					IFS=$OLDIFS
@@ -1072,7 +1222,7 @@ $COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
+				IFS=$(echo -e "\u7")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -1080,7 +1230,7 @@ $COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 				for i in `seq 0 ${DATA_ARRAY[0]}`; do
 					# Get the email message pieces
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
+					IFS=$(echo -e "\u6")
 					DATA_PIECES=(${DATA_ARRAY[$i]})
 					IFS=$OLDIFS
 
@@ -1293,7 +1443,7 @@ $SOURCE_STRING" $CUR_COLS)
 			if [ "$DATA_FRESH" == 0 ]; then
 				NEW_DATA="$(( CUR_COLS/MATRIX_CHAR_WIDTH ))"
 				for i in `seq 1 $NEW_DATA`; do
-					NEW_DATA=$NEW_DATA$(echo -e "\u07")
+					NEW_DATA=$NEW_DATA$(echo -e "\u7")
 					COL_DATA=""
 					COL_LEN=0;
 					for j in `seq 1 $CUR_ROWS`; do
@@ -1321,10 +1471,10 @@ $SOURCE_STRING" $CUR_COLS)
 						if [ "$COL_LEN" -ge "$CUR_ROWS" ]; then
 							break
 						else
-							COL_DATA=$COL_DATA$(echo -e "\u06")
+							COL_DATA=$COL_DATA$(echo -e "\u6")
 						fi
 					done
-					NEW_DATA=$NEW_DATA$COL_LEN$(echo -e "\u06")$COL_DATA
+					NEW_DATA=$NEW_DATA$COL_LEN$(echo -e "\u6")$COL_DATA
 				done
 				DATA=$NEW_DATA
 			else
@@ -1335,7 +1485,7 @@ $SOURCE_STRING" $CUR_COLS)
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=$(echo -e "\u07")
+				IFS=$(echo -e "\u7")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -1348,7 +1498,7 @@ $SOURCE_STRING" $CUR_COLS)
 				for i in `seq 1 ${DATA_ARRAY[0]}`; do
 					# Expand the column into strings
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
+					IFS=$(echo -e "\u6")
 					STRINGS=(${DATA_ARRAY[$i]})
 					IFS=$OLDIFS
 
@@ -1468,10 +1618,10 @@ $NEW_CHAR
 					OLDIFS=$IFS
 					IFS=$'\n'
 					FEED=($(grep "<item[^>]*>.*</item>" <<< "$FEED"))
-					NEW_DATA=$NEW_DATA$(echo -e "\u05")$D_channelTitle
-					NEW_DATA=$NEW_DATA$(echo -e "\u06")$D_channelLink
-					NEW_DATA=$NEW_DATA$(echo -e "\u06")$D_channelDate
-					NEW_DATA=$NEW_DATA$(echo -e "\u06")${#FEED[@]}
+					NEW_DATA=$NEW_DATA$(echo -e "\u5")$D_channelTitle
+					NEW_DATA=$NEW_DATA$(echo -e "\u6")$D_channelLink
+					NEW_DATA=$NEW_DATA$(echo -e "\u6")$D_channelDate
+					NEW_DATA=$NEW_DATA$(echo -e "\u6")${#FEED[@]}
 					for j in `seq 0 $(( ${#FEED[@]} - 1 ))`; do
 						ENTRY=${FEED[$j]}
 						D_title=$(grep -oPm1 "(?<=<title>)[^<]*"\
@@ -1486,10 +1636,10 @@ $NEW_CHAR
 							<<< "$ENTRY")
 						D_date=$(date -d "${D_date:-$D_pubDate}" "+%s");
 						D_description=$(strip_html "$D_description")
-						NEW_DATA=$NEW_DATA$(echo -e "\u07")
-						NEW_DATA=$NEW_DATA$D_title$(echo -e "\u06")
-						NEW_DATA=$NEW_DATA$D_link$(echo -e "\u06")
-						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u06")
+						NEW_DATA=$NEW_DATA$(echo -e "\u7")
+						NEW_DATA=$NEW_DATA$D_title$(echo -e "\u6")
+						NEW_DATA=$NEW_DATA$D_link$(echo -e "\u6")
+						NEW_DATA=$NEW_DATA$D_date$(echo -e "\u6")
 						NEW_DATA=$NEW_DATA$D_description
 					done
 					IFS=$OLDIFS
@@ -1503,7 +1653,7 @@ $NEW_CHAR
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Expand the data into an array
 				OLDIFS=$IFS
-				IFS=$(echo -e "\u05")
+				IFS=$(echo -e "\u5")
 				DATA_ARRAY=($DATA)
 				IFS=$OLDIFS
 
@@ -1546,13 +1696,13 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					fi
 					SOURCE_DATA=${DATA_ARRAY[$i]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
+					IFS=$(echo -e "\u7")
 					ARTICLE_ARRAY=($SOURCE_DATA)
 					IFS=$OLDIFS
 
 					# Print the source meta-data
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u06")
+					IFS=$(echo -e "\u6")
 					SOURCE_META=(${ARTICLE_ARRAY[0]})
 					IFS=$OLDIFS
 					NEW_DRAW[((++LINE))]=$COLOR_ULINE$COLOR_ORNG$(truncate\
@@ -1573,7 +1723,7 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 						fi
 						ARTICLE_DATA=${ARTICLE_ARRAY[$j]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
+						IFS=$(echo -e "\u6")
 						INFO_ARRAY=($ARTICLE_DATA)
 						IFS=$OLDIFS
 
@@ -1706,12 +1856,12 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					D_CPU_interrupt=$(echo "$(echo "$oneCPU" | cut -f8)+\
 $(echo "$oneCPU" | cut -f9)" | bc)
 					D_CPU_idle=$(echo "$oneCPU" | cut -f13)
-					D_CPU_all=$D_CPU_all$(echo -e "\u07")
-					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u06")
-					D_CPU_all=$D_CPU_all$D_CPU_interrupt$(echo -e "\u06")
+					D_CPU_all=$D_CPU_all$(echo -e "\u7")
+					D_CPU_all=$D_CPU_all$D_CPU_id$(echo -e "\u6")
+					D_CPU_all=$D_CPU_all$D_CPU_user$(echo -e "\u6")
+					D_CPU_all=$D_CPU_all$D_CPU_kernel$(echo -e "\u6")
+					D_CPU_all=$D_CPU_all$D_CPU_io$(echo -e "\u6")
+					D_CPU_all=$D_CPU_all$D_CPU_interrupt$(echo -e "\u6")
 					D_CPU_all=$D_CPU_all$D_CPU_idle
 				done
 				IFS=$OLDIFS
@@ -1737,9 +1887,9 @@ $(echo "$oneCPU" | cut -f9)" | bc)
 					))
 					D_FSY_used=$(echo "$oneFSY" | cut -f4 | tr -d "%"\
 						| sed 's/^\(.*\)$/scale=4;\1\/100/' | bc)
-					D_FSY_all=$D_FSY_all$(echo -e "\u07")
-					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u06")
-					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u06")
+					D_FSY_all=$D_FSY_all$(echo -e "\u7")
+					D_FSY_all=$D_FSY_all$D_FSY_mount$(echo -e "\u6")
+					D_FSY_all=$D_FSY_all$D_FSY_size$(echo -e "\u6")
 					D_FSY_all=$D_FSY_all$D_FSY_used
 				done
 				IFS=$OLDIFS
@@ -1771,9 +1921,9 @@ $(echo "$oneCPU" | cut -f9)" | bc)
 							D_TMP_curTemp=$(bc <<< "($D_TMP_curTemp*9+160)/5")
 							D_TMP_maxTemp=$(bc <<< "($D_TMP_maxTemp*9+160)/5")
 						fi
-						D_TMP_all=$D_TMP_all$(echo -e "\u07")
-						D_TMP_all=$D_TMP_all$D_TMP_sensor$(echo -e "\u06")
-						D_TMP_all=$D_TMP_all$D_TMP_curTemp$(echo -e "\u06")
+						D_TMP_all=$D_TMP_all$(echo -e "\u7")
+						D_TMP_all=$D_TMP_all$D_TMP_sensor$(echo -e "\u6")
+						D_TMP_all=$D_TMP_all$D_TMP_curTemp$(echo -e "\u6")
 						D_TMP_all=$D_TMP_all$D_TMP_maxTemp
 						D_TMP_sensor=""
 						D_TMP_curTemp=""
@@ -1802,8 +1952,8 @@ $(echo "$oneCPU" | cut -f9)" | bc)
 						POS=1
 					else
 						D_NWK_ipAddress=$oneNWK
-						D_NWK_all=$D_NWK_all$(echo -e "\u07")
-						D_NWK_all=$D_NWK_all$D_NWK_ipName$(echo -e "\u06")
+						D_NWK_all=$D_NWK_all$(echo -e "\u7")
+						D_NWK_all=$D_NWK_all$D_NWK_ipName$(echo -e "\u6")
 						D_NWK_all=$D_NWK_all$D_NWK_ipAddress
 						POS=0
 					fi
@@ -1935,13 +2085,13 @@ $(repeat "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
 					NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
 					CPU_DATA=${DATA_ARRAY[12]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
+					IFS=$(echo -e "\u7")
 					CPU_DATA=($CPU_DATA)
 					IFS=$OLDIFS
 					for j in `seq 1 ${CPU_DATA[0]}`; do
 						oneCPU=${CPU_DATA[$j]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
+						IFS=$(echo -e "\u6")
 						PARTS=($oneCPU)
 						IFS=$OLDIFS
 						NEW_DRAW[((++i))]=$VBAR
@@ -2012,13 +2162,13 @@ $(repeat "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
 					NEW_DRAW[$k]=$(center "${NEW_DRAW[$k]}" $CUR_COLS)
 					FSY_DATA=${DATA_ARRAY[16]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
+					IFS=$(echo -e "\u7")
 					FSY_DATA=($FSY_DATA)
 					IFS=$OLDIFS
 					for FSYno in `seq 1 ${FSY_DATA[0]}`; do
 						oneFSY=${FSY_DATA[$FSYno]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
+						IFS=$(echo -e "\u6")
 						PARTS=($oneFSY)
 						IFS=$OLDIFS
 						NEW_DRAW[((++k))]=$VBAR
@@ -2065,13 +2215,13 @@ $(repeat "$DISPLAY_SEPARATOR_H" $BAR_WIDTH)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 						"$COLOR_BG_HEAT_6")
 					TMP_DATA=${DATA_ARRAY[17]}
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
+					IFS=$(echo -e "\u7")
 					TMP_DATA=($TMP_DATA)
 					IFS=$OLDIFS
 					for TMPno in `seq 1 ${TMP_DATA[0]}`; do
 						oneTMP=${TMP_DATA[$TMPno]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
+						IFS=$(echo -e "\u6")
 						PARTS=($oneTMP)
 						IFS=$OLDIFS
 						((++l))
@@ -2103,13 +2253,13 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 					NEW_DRAW[((++m))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Network Addresses"$COLOR_RESET" *" $CUR_COLS)
 					OLDIFS=$IFS
-					IFS=$(echo -e "\u07")
+					IFS=$(echo -e "\u7")
 					NWK_DATA=(${DATA_ARRAY[18]})
 					IFS=$OLDIFS
 					for NWKno in `seq 1 ${NWK_DATA[0]}`; do
 						oneNWK=${NWK_DATA[$NWKno]}
 						OLDIFS=$IFS
-						IFS=$(echo -e "\u06")
+						IFS=$(echo -e "\u6")
 						PARTS=($oneNWK)
 						IFS=$OLDIFS
 						((++m))
