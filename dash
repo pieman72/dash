@@ -40,6 +40,8 @@ if [ "$DISPLAY_ENCODING" == "UTF8" ]; then
 	DISPLAY_SEPARATOR_TR=$(load_config "DISPLAY_SEPARATOR_TR" '┐')
 	DISPLAY_SEPARATOR_BL=$(load_config "DISPLAY_SEPARATOR_BL" '└')
 	DISPLAY_SEPARATOR_BR=$(load_config "DISPLAY_SEPARATOR_BR" '┘')
+	DISPLAY_RIGHT_ARROW=$(load_config "DISPLAY_RIGHT_ARROW" '▶')
+	DISPLAY_LEFT_ARROW=$(load_config "DISPLAY_LEFT_ARROW" '◀')
 else
 	DISPLAY_SEPARATOR_V=$(load_config "DISPLAY_SEPARATOR_V" '|')
 	DISPLAY_SEPARATOR_H=$(load_config "DISPLAY_SEPARATOR_H" '-')
@@ -52,6 +54,8 @@ else
 	DISPLAY_SEPARATOR_TR=$(load_config "DISPLAY_SEPARATOR_TR" '+')
 	DISPLAY_SEPARATOR_BL=$(load_config "DISPLAY_SEPARATOR_BL" '+')
 	DISPLAY_SEPARATOR_BR=$(load_config "DISPLAY_SEPARATOR_BR" '+')
+	DISPLAY_RIGHT_ARROW=$(load_config "DISPLAY_RIGHT_ARROW" '>')
+	DISPLAY_LEFT_ARROW=$(load_config "DISPLAY_LEFT_ARROW" '<')
 fi
 
 # Color palette configuration
@@ -432,7 +436,7 @@ function future_date(){
 	elif [ "$AGE" -gt 5184000 ]; then
 		DATE_STRING=$(date -d "@$1" '+%_m/%d')
 		DATE_COLOR=$COLOR_HEAT_1
-	elif [ "$1" -lt "$(date -d 'tomorrow 00:00:00' '+%s')" ]; then
+	elif [ "$1" -gt "$(date -d 'tomorrow 00:00:00' '+%s')" ]; then
 		DATE_STRING=$(date -d "@$1" '+%b %e')
 		DATE_COLOR=$COLOR_HEAT_2
 	elif [ "$AGE" -gt 300 ]; then
@@ -1107,8 +1111,6 @@ function render_sections(){
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-# TODO:
-DATA_FRESH=0
 			if [ "$DATA_FRESH" == 0 ]; then
 				# If there are Google Calendars, fetch them
 				LIST=""
@@ -1177,7 +1179,7 @@ DATA_FRESH=0
 						# Iterate through events
 						for j in `seq 0 $(( ${#EVENTS[@]} - 1 ))`; do
 							# Dissect the event and skip if tentative
-							ENTRY=${EVENTS[$i]}
+							ENTRY=${EVENTS[$j]}
 							LEAD='^.*"status"'
 							D_status=$(echo "$ENTRY" | grep '"status"'\
 								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
@@ -1187,19 +1189,49 @@ DATA_FRESH=0
 							LEAD='^.*"location"'
 							D_location=$(echo "$ENTRY" | grep '"location"'\
 								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+
+							LEAD='^.*"start"[^|]*|[^|]*"date"'
+							D_startDate=$(echo "$ENTRY" | grep "$LEAD"\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+
+							LEAD='^.*"end"[^|]*|[^|]*"date"'
+							D_endDate=$(echo "$ENTRY" | grep "$LEAD"\
+								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
+
 							LEAD='^.*"start"[^|]*|[^|]*"dateTime"'
-							D_start=$(echo "$ENTRY" | grep '"start"'\
+							D_start=$(echo "$ENTRY" | grep "$LEAD"\
 								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
-							D_start=$(date -d "$D_start" "+%s")
+
 							LEAD='^.*"end"[^|]*|[^|]*"dateTime"'
-							D_end=$(echo "$ENTRY" | grep '"end"'\
+							D_end=$(echo "$ENTRY" | grep "$LEAD"\
 								| sed "s/$LEAD\s*:\s*\"\([^\"]*\)\".*$/\1/")
-							D_end=$(date -d "$D_end" "+%s")
+							if [ -z "$D_end" ]; then
+								if [ -n "$D_endDate" ] ; then
+									D_end=$(date -d "$D_endDate" "+%s")
+								elif [ -n "$D_start" ]; then
+									D_end=$(( $(date -d "$D_start" "+%s")\
+										+ 3600 ))
+								elif [ -n "$D_startDate" ]; then
+									D_end=$(( $(date -d "$D_start" "+%s")\
+										+ (24*3600) ))
+								fi
+							else
+								D_end=$(date -d "$D_end" "+%s")
+							fi
+							if [ -z "$D_start" ]; then
+								if [ -n "$D_startDate" ] ; then
+									D_start=$(date -d "$D_startDate" "+%s")
+								else
+									continue
+								fi
+							else
+								D_start=$(date -d "$D_start" "+%s")
+							fi
 							if [ "$D_status" != "confirmed" ];then continue;fi
 
 							# Add the calendar parts to the data string
 							LIST=$LIST"\n"
-							LIST=$LIST$D_start" {"
+							LIST=$LIST$D_start" "$D_end" {"
 							LIST=$LIST$(echo -e "\u7")
 							LIST=$LIST$D_backgroundColor$(echo -e "\u6")
 							LIST=$LIST$D_foregroundColor$(echo -e "\u6")
@@ -1212,7 +1244,8 @@ DATA_FRESH=0
 
 					# Append the list of events to the data string
 					NEW_DATA=$NEW_DATA$(echo -e "$LIST"\
-						| sort -k1d | sed "s/^[0-9]* {//g" | tr -d "\n")
+						| sort -k1n,2n | uniq\
+						| sed "s/^[0-9]\+ [0-9]\+ {//g" | tr -d "\n")
 					IFS=$OLDIFS
 				fi
 				DATA=$NEW_DATA
@@ -1223,6 +1256,7 @@ DATA_FRESH=0
 			# If the drawing is old, redo it
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Collect date parts
+				NOW=$(date '+%s')
 				TODAY_YEAR=$(date '+%Y')
 				TODAY_MONTH=$(date '+%m')
 				TODAY_DAY=$(date '+%d')
@@ -1318,6 +1352,11 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 					fi
 					EVENT=${DATA_ARRAY[$i]}
 
+					# Skip finished events
+					if [ -n "${PARTS[5]}" ]&&[ "${PARTS[5]}" -lt "$NOW" ]; then
+						continue
+					fi
+
 					# Get the event parts
 					IFS=$(echo -e "\u6")
 					PARTS=($EVENT)
@@ -1325,6 +1364,7 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 					#Get the event colors
 					EVENT_BG=$(hex_to_ansi "${PARTS[0]}" 1)
 					EVENT_FG=$(hex_to_ansi "${PARTS[1]}")
+					EVENT_INV=$(hex_to_ansi "${PARTS[0]}")
 
 					# Format the start and end times
 					if [ -n "${PARTS[4]}" ]; then
@@ -1346,29 +1386,23 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 
 					# Print the event at different sizes
 					if [ "$LINES_PER_EVENT" -eq 1 ]; then
-						DESC=$(truncate\
-							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
-						DESC=$(extend\
-							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
-							$((CUR_COLS-START_LEN-1))\
-						)" "$DATE_STRING
-						NEW_DRAW[((++LINE))]=$DESC
+						DESC=$(truncatex\
+							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
+						DESC=$EVENT_BG$EVENT_FG"##"$EVENT_INV$COLOR_BG_NORM\
+$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
+						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
 					elif [ "$LINES_PER_EVENT" -eq 2 ]; then
-						DESC=$(truncate\
-							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
-						DESC=$(extend\
-							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
-							$((CUR_COLS-START_LEN-1))\
-						)" "$DATE_STRING
-						NEW_DRAW[((++LINE))]=$DESC
+						DESC=$(truncatex\
+							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
+						DESC=$EVENT_BG$EVENT_FG"--"$EVENT_INV$COLOR_BG_NORM\
+$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
+						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
 					else
-						DESC=$(truncate\
-							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
-						DESC=$(extend\
-							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
-							$((CUR_COLS-START_LEN-1))\
-						)" "$DATE_STRING
-						NEW_DRAW[((++LINE))]=$DESC
+						DESC=$(truncatex\
+							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
+						DESC=$EVENT_BG$EVENT_FG"--"$EVENT_INV$COLOR_BG_NORM\
+$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
+						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
 					fi
 				done
 				IFS=$OLDIFS
@@ -2787,6 +2821,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 			echo "$SIZE" >> "$DASH_ROOT/$CUR_SECT"".dash"
 			printf '%s\n' "${DRAW[@]}"  >> "$DASH_ROOT/$CUR_SECT"".dash"
 
+			# In debug mode, skip output
 			if [ "$DBG" = 0 ]; then
 				# Print top border as needed
 				if [ "$BORDER_TOP" = 1 ]; then
