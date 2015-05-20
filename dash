@@ -1253,7 +1253,8 @@ function render_sections(){
 				DATA=$OLD_DATA
 			fi
 
-			# If the drawing is old, redo it
+			# If the drawing is old, redo it (always true for events)
+			SIZE_FRESH=0
 			if [ "$SIZE_FRESH" = 0 ]; then
 				# Collect date parts
 				NOW=$(date '+%s')
@@ -1340,12 +1341,13 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 						fi
 					done
 					((++LINE))
+					((++LINE))
 				fi
 
 				# Iterate through calendar events
 				NEW_DRAW[((++LINE))]=$(center "* "$COLOR_GRAY$COLOR_ULINE\
 "Upcoming Events"$COLOR_RESET" *" $CUR_COLS)
-				for i in `seq 0 $(( ${#DATA_ARRAY[@]} - 1 ))`; do
+				for i in `seq 1 $(( ${#DATA_ARRAY[@]} - 1 ))`; do
 					# Break when we run out of room
 					if [ "$((CUR_ROWS - LINE - LINES_PER_EVENT))" -lt 4 ]; then
 						break;
@@ -1353,59 +1355,82 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 					EVENT=${DATA_ARRAY[$i]}
 
 					# Skip finished events
-					if [ -n "${PARTS[5]}" ]&&[ "${PARTS[5]}" -lt "$NOW" ]; then
-						continue
-					fi
+					if [ -z "${PARTS[5]}" ]||[ "${PARTS[5]}" -ge "$NOW" ]; then
+						# Get the event parts
+						IFS=$(echo -e "\u6")
+						PARTS=($EVENT)
+						IFS=$OLDIFS
 
-					# Get the event parts
-					IFS=$(echo -e "\u6")
-					PARTS=($EVENT)
+						#Get the event colors
+						EVENT_BG=$(hex_to_ansi "${PARTS[0]}" 1)
+						EVENT_FG=$(hex_to_ansi "${PARTS[1]}")
+						EVENT_INV=$(hex_to_ansi "${PARTS[0]}")
 
-					#Get the event colors
-					EVENT_BG=$(hex_to_ansi "${PARTS[0]}" 1)
-					EVENT_FG=$(hex_to_ansi "${PARTS[1]}")
-					EVENT_INV=$(hex_to_ansi "${PARTS[0]}")
-
-					# Format the start and end times
-					if [ -n "${PARTS[4]}" ]; then
-						START_TEXT=$(future_date "${PARTS[4]}" 1)
-						START_LEN=$(echo -en "$START_TEXT"\
+						# Format the start and end times
+						if [ -n "${PARTS[4]}" ]; then
+							START_TEXT=$(future_date "${PARTS[4]}" 1)
+							START_LEN=$(echo -en "$START_TEXT"\
+								| sed "s/[^m]*m//g" | wc -m)
+						else
+							START_TEXT=""
+							START_LEN=0
+						fi
+						if [ -n "${PARTS[5]}" ]; then
+							END_TEXT=$(future_date "${PARTS[5]}" 1)
+							END_LEN=$(echo -en "$END_TEXT"\
+								| sed "s/[^m]*m//g" | wc -m)
+						else
+							END_TEXT=""
+							END_LEN=0
+						fi
+						if [ "$START_TEXT" == "$END_TEXT" ]; then
+							SPAN_TEXT=$START_TEXT
+						else
+							SPAN_TEXT=$START_TEXT" - "$END_TEXT
+						fi
+						SPAN_LEN=$(echo -en "$SPAN_TEXT"\
 							| sed "s/[^m]*m//g" | wc -m)
-					else
-						START_TEXT=""
-						START_LEN=0
-					fi
-					if [ -n "${PARTS[5]}" ]; then
-						END_TEXT=$(future_date "${PARTS[5]}" 1)
-						END_LEN=$(echo -en "$END_TEXT"\
-							| sed "s/[^m]*m//g" | wc -m)
-					else
-						END_TEXT=""
-						END_LEN=0
-					fi
 
-					# Print the event at different sizes
-					if [ "$LINES_PER_EVENT" -eq 1 ]; then
-						DESC=$(truncatex\
-							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
-						DESC=$EVENT_BG$EVENT_FG"##"$EVENT_INV$COLOR_BG_NORM\
-$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
-						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
-					elif [ "$LINES_PER_EVENT" -eq 2 ]; then
-						DESC=$(truncatex\
-							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
-						DESC=$EVENT_BG$EVENT_FG"--"$EVENT_INV$COLOR_BG_NORM\
-$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
-						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
-					else
-						DESC=$(truncatex\
-							"${PARTS[2]}" $((CUR_COLS/2 - START_LEN - 5)))
-						DESC=$EVENT_BG$EVENT_FG"--"$EVENT_INV$COLOR_BG_NORM\
-$DISPLAY_RIGHT_ARROW" "$COLOR_RESET$DESC" "$START_TEXT
-						NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
+						# Print the event at different sizes
+						LEN=$(( CUR_COLS/2 ))
+						LEN=$(( (LEN<SECTION_MIN_COLS)?SECTION_MIN_COLS:LEN ))
+						if [ "$LINES_PER_EVENT" -eq 1 ]; then
+							DESC=$(truncatex\
+								"${PARTS[2]}" $((LEN - START_LEN - 5)))
+							DESC=$EVENT_BG$EVENT_FG$DISPLAY_SEPARATOR_H\
+$DISPLAY_SEPARATOR_H$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
+$COLOR_RESET" "$DESC" "$START_TEXT
+							NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
+						elif [ "$LINES_PER_EVENT" -eq 2 ]; then
+							DESC=$(truncatex\
+								"${PARTS[2]}" $((LEN - SPAN_LEN - 4)))
+							DESC=$EVENT_BG$EVENT_FG$DISPLAY_SEPARATOR_H\
+$DISPLAY_SEPARATOR_H$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
+$COLOR_RESET" "$DESC" "$SPAN_TEXT
+							if [ -n "${PARTS[3]}" ]; then
+								LOC=$(truncatex "        $COLOR_GRAY[ \
+${PARTS[3]} ]$COLOR_RESET" $LEN)
+							else LOC=""; fi
+							NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(center "$LOC" $CUR_COLS)
+						else
+							DESC=$(truncatex\
+								"${PARTS[2]}" $((LEN - SPAN_LEN - 4)))
+							DESC=$EVENT_BG$EVENT_FG\
+$DISPLAY_SEPARATOR_V$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
+$COLOR_RESET" "$DESC" "$SPAN_TEXT
+							if [ -n "${PARTS[3]}" ]; then
+								LOC=$(truncatex "        $COLOR_GRAY[ \
+${PARTS[3]} ]$COLOR_RESET" $LEN)
+							else LOC=""; fi
+							DIV=$COLOR_DGRY$(repeat\
+								"$DISPLAY_SEPARATOR_H" $LEN)$COLOR_RESET
+							NEW_DRAW[((++LINE))]=$(center "$DIV" $CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(center "$LOC" $CUR_COLS)
+						fi
 					fi
 				done
-				IFS=$OLDIFS
 
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
