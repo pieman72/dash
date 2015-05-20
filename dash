@@ -293,6 +293,119 @@ function randomize(){
 	done
 	echo $RET
 }
+function hex_to_ansi(){
+	# Get the individual color components as decimals
+	HEX=$(echo "$1" | tr -d '#' | tr '[:lower:]' '[:upper:]')
+	DIGITS=$(( ${#HEX} / 3 ))
+	R=$(( 16#${HEX:$(( DIGITS * 0 )):$DIGITS} ))
+	G=$(( 16#${HEX:$(( DIGITS * 1 )):$DIGITS} ))
+	B=$(( 16#${HEX:$(( DIGITS * 2 )):$DIGITS} ))
+
+	# Handle grey ramp
+	if [ "`echo $(( R-G )) | tr -d '-'`" -lt 16 ]\
+			&& [ "`echo $(( R-B )) | tr -d '-'`" -lt 16 ]\
+			&& [ "`echo $(( G-B )) | tr -d '-'`" -lt 16 ]; then
+		GREY=$(( (R+G+B)/3 ))
+		if [ "$GREY" -lt 5 ]; then CC="0"
+		elif [ "$GREY" -gt 246 ]; then CC=15
+		else CC=$(( (GREY-3)/10 + 232 )); fi
+
+	# Handle 16 basic colors
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+		CC="0"
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+		CC=1
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+		CC=2
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+		CC=3
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=4
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=5
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=6
+	elif [ "`echo $(( R-192 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-192 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-192 )) | tr -d '-'`" -lt 40 ]; then
+		CC=7
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=8
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=9
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=10
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+		CC=11
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+		CC=12
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+		CC=13
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+		CC=14
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+		CC=15
+
+	# Handle 6x6x6 color cube
+	else
+		CC=16
+		if [ "$R" -lt 48 ]; then :
+		elif [ "$R" -lt 115 ]; then CC=$(( CC+(36*1) ))
+		elif [ "$R" -lt 156 ]; then CC=$(( CC+(36*2) ))
+		elif [ "$R" -lt 196 ]; then CC=$(( CC+(36*3) ))
+		elif [ "$R" -lt 235 ]; then CC=$(( CC+(36*4) ))
+		else CC=$(( CC+(36*5) )); fi
+		if [ "$G" -lt 48 ]; then :
+		elif [ "$G" -lt 115 ]; then CC=$(( CC+(6*1) ))
+		elif [ "$G" -lt 156 ]; then CC=$(( CC+(6*2) ))
+		elif [ "$G" -lt 196 ]; then CC=$(( CC+(6*3) ))
+		elif [ "$G" -lt 235 ]; then CC=$(( CC+(6*4) ))
+		else CC=$(( CC+(6*5) )); fi
+		if [ "$B" -lt 48 ]; then :
+		elif [ "$B" -lt 115 ]; then CC=$(( CC+1 ))
+		elif [ "$B" -lt 156 ]; then CC=$(( CC+2 ))
+		elif [ "$B" -lt 196 ]; then CC=$(( CC+3 ))
+		elif [ "$B" -lt 235 ]; then CC=$(( CC+4 ))
+		else CC=$(( CC+5 )); fi
+	fi
+
+	# Use the color for either background or foreground
+	if [ -z "$2" ]; then
+		echo "[38;5;"$CC"m"
+	else
+		echo "[48;5;"$CC"m"
+	fi
+}
 function heat(){
 	COLORS=("$COLOR_HEAT_0" "$COLOR_HEAT_1" "$COLOR_HEAT_2" "$COLOR_HEAT_3"\
 		"$COLOR_HEAT_4" "$COLOR_HEAT_5" "$COLOR_HEAT_6")
@@ -307,6 +420,70 @@ function heat(){
 		echo -en "${COLORS[$(( INDEX>6 ? 6 : INDEX ))]}$1$COLOR_RESET"
 	else
 		echo -en "${BGCOLORS[$(( INDEX>6 ? 6 : INDEX ))]}$1$COLOR_RESET"
+	fi
+}
+function future_date(){
+	NOW=$(date '+%s')
+	if [ "$NOW" -gt "$1" ];then echo "$(past_date "$1" "$2")"; return; fi
+	AGE=$(( $1 - NOW ))
+	if [ "$AGE" -gt 31536000 ]; then
+		DATE_STRING=$(date -d "@$1" +%F)
+		DATE_COLOR=$COLOR_HEAT_0
+	elif [ "$AGE" -gt 5184000 ]; then
+		DATE_STRING=$(date -d "@$1" '+%_m/%d')
+		DATE_COLOR=$COLOR_HEAT_1
+	elif [ "$1" -lt "$(date -d 'tomorrow 00:00:00' '+%s')" ]; then
+		DATE_STRING=$(date -d "@$1" '+%b %e')
+		DATE_COLOR=$COLOR_HEAT_2
+	elif [ "$AGE" -gt 300 ]; then
+		DATE_STRING=$(date -d "@$1" '+%l:%M%P')
+		DATE_COLOR=$COLOR_HEAT_3
+	elif [ "$AGE" -gt 120 ]; then
+		DATE_STRING="in $(( AGE/60 )) minutes"
+		DATE_COLOR=$COLOR_HEAT_4
+	elif [ "$AGE" -gt 60 ]; then
+		DATE_STRING="in 1 minute"
+		DATE_COLOR=$COLOR_HEAT_5
+	else
+		DATE_STRING="now"
+		DATE_COLOR=$COLOR_HEAT_6
+	fi
+	if [ -z "$2" ]; then
+		echo $DATE_STRING
+	else
+		echo $DATE_COLOR$DATE_STRING$COLOR_RESET
+	fi
+}
+function past_date(){
+	NOW=$(date '+%s')
+	if [ "$NOW" -lt "$1" ];then echo "$(future_date "$1" "$2")"; return; fi
+	AGE=$(( NOW - $1 ))
+	if [ "$AGE" -gt 31536000 ]; then
+		DATE_STRING=$(date -d "@$1" +%F)
+		DATE_COLOR=$COLOR_HEAT_0
+	elif [ "$AGE" -gt 5184000 ]; then
+		DATE_STRING=$(date -d "@$1" '+%_m/%d')
+		DATE_COLOR=$COLOR_HEAT_1
+	elif [ "$1" -lt "$(date -d 'today 00:00:00' +%s)" ]; then
+		DATE_STRING=$(date -d "@$1" '+%b %e')
+		DATE_COLOR=$COLOR_HEAT_2
+	elif [ "$AGE" -gt 300 ]; then
+		DATE_STRING=$(date -d "@$1" '+%l:%M%P')
+		DATE_COLOR=$COLOR_HEAT_3
+	elif [ "$AGE" -gt 120 ]; then
+		DATE_STRING="$(( AGE/60 )) minutes ago"
+		DATE_COLOR=$COLOR_HEAT_4
+	elif [ "$AGE" -gt 60 ]; then
+		DATE_STRING="1 minute ago"
+		DATE_COLOR=$COLOR_HEAT_5
+	else
+		DATE_STRING="just now"
+		DATE_COLOR=$COLOR_HEAT_6
+	fi
+	if [ -z "$2" ]; then
+		echo $DATE_STRING
+	else
+		echo $DATE_COLOR$DATE_STRING$COLOR_RESET
 	fi
 }
 function fmt_mem(){
@@ -1021,7 +1198,7 @@ DATA_FRESH=0
 							if [ "$D_status" != "confirmed" ];then continue;fi
 
 							# Add the calendar parts to the data string
-							if [ "$j" -gt 0 ]; then LIST=$LIST"\n"; fi
+							LIST=$LIST"\n"
 							LIST=$LIST$D_start" {"
 							LIST=$LIST$(echo -e "\u7")
 							LIST=$LIST$D_backgroundColor$(echo -e "\u6")
@@ -1144,20 +1321,53 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 					# Get the event parts
 					IFS=$(echo -e "\u6")
 					PARTS=($EVENT)
-#color
-#color
-#name
-#place
-#start
-#end
+
+					#Get the event colors
+					EVENT_BG=$(hex_to_ansi "${PARTS[0]}" 1)
+					EVENT_FG=$(hex_to_ansi "${PARTS[1]}")
+
+					# Format the start and end times
+					if [ -n "${PARTS[4]}" ]; then
+						START_TEXT=$(future_date "${PARTS[4]}" 1)
+						START_LEN=$(echo -en "$START_TEXT"\
+							| sed "s/[^m]*m//g" | wc -m)
+					else
+						START_TEXT=""
+						START_LEN=0
+					fi
+					if [ -n "${PARTS[5]}" ]; then
+						END_TEXT=$(future_date "${PARTS[5]}" 1)
+						END_LEN=$(echo -en "$END_TEXT"\
+							| sed "s/[^m]*m//g" | wc -m)
+					else
+						END_TEXT=""
+						END_LEN=0
+					fi
+
+					# Print the event at different sizes
 					if [ "$LINES_PER_EVENT" -eq 1 ]; then
-						DESC=${PARTS[2]}
+						DESC=$(truncate\
+							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
+						DESC=$(extend\
+							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
+							$((CUR_COLS-START_LEN-1))\
+						)" "$DATE_STRING
 						NEW_DRAW[((++LINE))]=$DESC
 					elif [ "$LINES_PER_EVENT" -eq 2 ]; then
-						DESC=${PARTS[2]}
+						DESC=$(truncate\
+							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
+						DESC=$(extend\
+							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
+							$((CUR_COLS-START_LEN-1))\
+						)" "$DATE_STRING
 						NEW_DRAW[((++LINE))]=$DESC
 					else
-						DESC=${PARTS[2]}
+						DESC=$(truncate\
+							"${PARTS[2]}" $((CUR_COLS-START_LEN-1)))
+						DESC=$(extend\
+							"$EVENT_BG$EVENT_FG$DESC$COLOR_RESET"\
+							$((CUR_COLS-START_LEN-1))\
+						)" "$DATE_STRING
 						NEW_DRAW[((++LINE))]=$DESC
 					fi
 				done
@@ -1236,33 +1446,9 @@ $COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 
 					# Get the date
 					if [ "$i" -gt 0 ]; then
-						MESSAGE_AGE=$(( $(date '+%s') - ${DATA_PIECES[2]} ))
-						if [ "$MESSAGE_AGE" -gt 31536000 ]; then
-							DATE_STRING=$(date -d "@${DATA_PIECES[2]}" '+%F')
-							DATE_COLOR=$COLOR_HEAT_0
-						elif [ "$MESSAGE_AGE" -gt 5184000 ]; then
-							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
-								'+%_m/%d')
-							DATE_COLOR=$COLOR_HEAT_1
-						elif [ "${DATA_PIECES[2]}" -lt\
-								"$(date -d 'today 00:00:00' '+%s')" ]; then
-							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
-								'+%b %e')
-							DATE_COLOR=$COLOR_HEAT_2
-						elif [ "$MESSAGE_AGE" -gt 300 ]; then
-							DATE_STRING=$(date -d "@${DATA_PIECES[2]}"\
-								'+%l:%M%P')
-							DATE_COLOR=$COLOR_HEAT_3
-						elif [ "$MESSAGE_AGE" -gt 120 ]; then
-							DATE_STRING="$(( MESSAGE_AGE/60 )) minutes ago"
-							DATE_COLOR=$COLOR_HEAT_4
-						elif [ "$MESSAGE_AGE" -gt 60 ]; then
-							DATE_STRING="1 minute ago"
-							DATE_COLOR=$COLOR_HEAT_5
-						else
-							DATE_STRING="just now"
-							DATE_COLOR=$COLOR_HEAT_6
-						fi
+						DATE_STRING=$(past_date "${DATA_PIECES[2]}" 1)
+						DATE_LEN=$(echo -en "$DATE_STRING"\
+							| sed "s/[^m]*m//g" | wc -m)
 					fi
 
 					# Smallest heights (3-10): just show most relevant info
@@ -1289,17 +1475,16 @@ $COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
 								LEN_SENDER=$(( ( (35*CUR_COLS)/100 ) > 15 ?\
 									( (35*CUR_COLS)/100 ) : 15 ))
 							fi
-							LEN_DATE=${#DATE_STRING}
 							NEW_DRAW[$i]="$COLOR_BOLD$(truncate\
 								"${DATA_PIECES[0]}"\
 								"$LEN_SENDER"\
 							)$COLOR_BOLD_OFF - $(extend\
 								"$(truncate\
 									"${DATA_PIECES[3]}"\
-									"$((CUR_COLS-(LEN_SENDER+4+LEN_DATE)))"\
+									"$((CUR_COLS-(LEN_SENDER+4+DATE_LEN)))"\
 								)"\
-								"$((CUR_COLS-(LEN_SENDER+4+LEN_DATE)))"\
-							) $DATE_COLOR$DATE_STRING$COLOR_NORM"
+								"$((CUR_COLS-(LEN_SENDER+4+DATE_LEN)))"\
+							) $DATE_STRING"
 						fi
 
 					# Medium heights (11-25): add some formatting
@@ -1329,11 +1514,9 @@ $COLOR_ULINE_OFF]$COLOR_NORM"
 $COLOR_NORM $COLOR_BOLD$(extend\
 								"$(truncate\
 									"${DATA_PIECES[0]}"\
-									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
-								)"\
-								"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
-							)$COLOR_BOLD_OFF \
-							$DATE_COLOR$DATE_STRING$COLOR_NORM"
+									"$(( $CUR_COLS - ($DATE_LEN + 7) ))")"\
+								"$(( $CUR_COLS - ($DATE_LEN + 7) ))"\
+							)$COLOR_BOLD_OFF $DATE_STRING"
 
 							# Row 3... shows the subject and message content
 							LEN_SUBJECT=${#DATA_PIECES[3]}
@@ -1376,33 +1559,32 @@ $(repeat "$DISPLAY_SEPARATOR_H" 7)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 						# For each message
 						else
 							# Row 3... shows the sender's info and date
-							if [ "$(( ${#DATA_PIECES[0]} + ${#DATE_STRING}\
-									+ 8))" -gt "$CUR_COLS" ]; then
+							if [ "$(( ${#DATA_PIECES[0]} + $DATE_LEN + 8))"\
+									-gt "$CUR_COLS" ]; then
 								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
 $COLOR_NORM $COLOR_BOLD$(truncate\
 									"${DATA_PIECES[0]}"\
-									"$(( $CUR_COLS - (${#DATE_STRING} + 7) ))"\
-								)$COLOR_BOLD_OFF \
-$DATE_COLOR$DATE_STRING$COLOR_NORM"
+									"$(( $CUR_COLS - ($DATE_LEN + 7) ))"\
+								)$COLOR_BOLD_OFF $DATE_STRING"
 							elif [ "$(( ${#DATA_PIECES[0]}\
-									+ ${#DATA_PIECES[1]} + ${#DATE_STRING}\
-									+ 10))" -gt "$CUR_COLS" ]; then
+									+ ${#DATA_PIECES[1]} + $DATE_LEN + 10))"\
+									-gt "$CUR_COLS" ]; then
 								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
 $COLOR_NORM $COLOR_BOLD${DATA_PIECES[0]}$COLOR_BOLD_OFF $(extend\
 									"<$(truncate "${DATA_PIECES[1]}"\
-										"$(( $CUR_COLS-(${#DATE_STRING}\
+										"$(( $CUR_COLS-($DATE_LEN\
 											+${#DATA_PIECES[0]}+10) ))"\
 									)>"\
-									"$(( $CUR_COLS-(${#DATE_STRING}\
+									"$(( $CUR_COLS-($DATE_LEN\
 										+${#DATA_PIECES[0]}+8) ))"\
-								) $DATE_COLOR$DATE_STRING$COLOR_NORM"
+								) $DATE_STRING"
 							else
 								NEW_DRAW[$((i*4))]=$COLOR_GRAY"From:\
 $COLOR_NORM $COLOR_BOLD${DATA_PIECES[0]}$COLOR_BOLD_OFF $(extend\
 									"<${DATA_PIECES[1]}>"\
-									"$(( $CUR_COLS-(${#DATE_STRING}\
+									"$(( $CUR_COLS-($DATE_LEN\
 										+${#DATA_PIECES[0]}+8) ))"\
-								) $DATE_COLOR$DATE_STRING$COLOR_NORM"
+								) $DATE_STRING"
 							fi
 
 							# Row 4... shows the subject
@@ -1728,39 +1910,15 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 						IFS=$OLDIFS
 
 						# Get the date
-						ARTICLE_AGE=$(( $(date +%s) - ${INFO_ARRAY[2]} ))
-						if [ "$ARTICLE_AGE" -gt 31536000 ]; then
-							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}" +%F)
-							DATE_COLOR=$COLOR_HEAT_0
-						elif [ "$ARTICLE_AGE" -gt 5184000 ]; then
-							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
-								'+%_m/%d')
-							DATE_COLOR=$COLOR_HEAT_1
-						elif [ "${INFO_ARRAY[2]}" -lt\
-								"$(date -d 'today 00:00:00' +%s)" ]; then
-							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
-								'+%b %e')
-							DATE_COLOR=$COLOR_HEAT_2
-						elif [ "$ARTICLE_AGE" -gt 300 ]; then
-							DATE_STRING=$(date -d "@${INFO_ARRAY[2]}"\
-								'+%l:%M%P')
-							DATE_COLOR=$COLOR_HEAT_3
-						elif [ "$ARTICLE_AGE" -gt 120 ]; then
-							DATE_STRING="$(( ARTICLE_AGE/60 )) minutes ago"
-							DATE_COLOR=$COLOR_HEAT_4
-						elif [ "$ARTICLE_AGE" -gt 60 ]; then
-							DATE_STRING="1 minute ago"
-							DATE_COLOR=$COLOR_HEAT_5
-						else
-							DATE_STRING="just now"
-							DATE_COLOR=$COLOR_HEAT_6
-						fi
+						DATE_STRING=$(past_date "${INFO_ARRAY[2]}" 1)
+						DATE_LEN=$(echo -en "$DATE_STRING"\
+							| sed "s/[^m]*m//g" | wc -m)
 
 						# Show the title and date
 						NEW_DRAW[((++LINE))]=$COLOR_BOLD$(truncatex\
 							"${INFO_ARRAY[0]}"\
-							"$(( CUR_COLS - ${#DATE_STRING} - 1 ))"\
-						)$COLOR_BOLD_OFF" "$DATE_COLOR$DATE_STRING$COLOR_RESET
+							"$(( CUR_COLS - $DATE_LEN - 1 ))"\
+						)$COLOR_BOLD_OFF" "$DATE_STRING
 
 						# Show any content lines
 						CONTENT=${INFO_ARRAY[3]}
