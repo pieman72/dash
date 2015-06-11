@@ -315,69 +315,69 @@ function hex_to_ansi(){
 		else CC=$(( (GREY-3)/10 + 232 )); fi
 
 	# Handle 16 basic colors
-	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 24 ]; then
 		CC="0"
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 24 ]; then
 		CC=1
-	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 24 ]; then
 		CC=2
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-0 )) | tr -d '-'`" -lt 24 ]; then
 		CC=3
-	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=4
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=5
-	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-0 )) | tr -d '-'`" -lt 24 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=6
-	elif [ "`echo $(( R-192 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-192 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-192 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-192 )) | tr -d '-'`" -lt 18 ]\
+			&& [ "`echo $(( G-192 )) | tr -d '-'`" -lt 18 ]\
+			&& [ "`echo $(( B-192 )) | tr -d '-'`" -lt 18 ]; then
 		CC=7
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=8
-	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=9
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=10
-	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( B-128 )) | tr -d '-'`" -lt 14 ]; then
 		CC=11
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 10 ]; then
 		CC=12
-	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( G-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 10 ]; then
 		CC=13
-	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-128 )) | tr -d '-'`" -lt 14 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 10 ]; then
 		CC=14
-	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 40 ]\
-			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 40 ]; then
+	elif [ "`echo $(( R-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( G-255 )) | tr -d '-'`" -lt 10 ]\
+			&& [ "`echo $(( B-255 )) | tr -d '-'`" -lt 10 ]; then
 		CC=15
 
 	# Handle 6x6x6 color cube
@@ -436,8 +436,11 @@ function future_date(){
 	elif [ "$AGE" -gt 5184000 ]; then
 		DATE_STRING=$(date -d "@$1" '+%_m/%d')
 		DATE_COLOR=$COLOR_HEAT_1
-	elif [ "$1" -gt "$(date -d 'tomorrow 00:00:00' '+%s')" ]; then
+	elif [ "$1" -gt "$(date -d 'tomorrow +1day 00:00:00' '+%s')" ]; then
 		DATE_STRING=$(date -d "@$1" '+%b %e')
+		DATE_COLOR=$COLOR_HEAT_2
+	elif [ "$1" -gt "$(date -d 'tomorrow 00:00:00' '+%s')" ]; then
+		DATE_STRING='tomorrow'
 		DATE_COLOR=$COLOR_HEAT_2
 	elif [ "$AGE" -gt 300 ]; then
 		DATE_STRING=$(date -d "@$1" '+%l:%M%P')
@@ -883,6 +886,7 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	declare -A WEATHER_COLORS
 	WEATHER_COLORS["Fair"]=$COLOR_YELO
 	WEATHER_COLORS["A Few Clouds"]=$COLOR_YELO
+	WEATHER_COLORS["A Few Clouds with Haze"]=$COLOR_YELO
 	WEATHER_COLORS["Partly Cloudy"]=$COLOR_WHIT
 	WEATHER_COLORS["Mostly Cloudy"]=$COLOR_LGRY
 	WEATHER_COLORS["Mostly Cloudy with Haze"]=$COLOR_LGRY
@@ -890,6 +894,7 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	WEATHER_COLORS["Overcast"]=$COLOR_GRAY
 	WEATHER_COLORS["Light Rain"]=$COLOR_BLUE
 	WEATHER_COLORS["Rain"]=$COLOR_BLUE
+	WEATHER_COLORS["Rain Fog/Mist"]=$COLOR_BLUE
 	WEATHER_COLORS["Light Rain Fog/Mist"]=$COLOR_LGRY
 	WEATHER_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_LBLU
 	WEATHER_COLORS["Fog/Mist"]=$COLOR_LGRY
@@ -900,6 +905,7 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	declare -A WEATHER_BG_COLORS
 	WEATHER_BG_COLORS["Fair"]=$COLOR_BG_YELO
 	WEATHER_BG_COLORS["A Few Clouds"]=$COLOR_BG_YELO
+	WEATHER_BG_COLORS["A Few Clouds with Haze"]=$COLOR_BG_YELO
 	WEATHER_BG_COLORS["Partly Cloudy"]=$COLOR_BG_WHIT
 	WEATHER_BG_COLORS["Mostly Cloudy"]=$COLOR_BG_LGRY
 	WEATHER_BG_COLORS["Mostly Cloudy with Haze"]=$COLOR_BG_LGRY
@@ -907,6 +913,7 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 	WEATHER_BG_COLORS["Overcast"]=$COLOR_BG_GRAY
 	WEATHER_BG_COLORS["Light Rain"]=$COLOR_BG_BLUE
 	WEATHER_BG_COLORS["Rain"]=$COLOR_BG_BLUE
+	WEATHER_BG_COLORS["Rain Fog/Mist"]=$COLOR_BG_BLUE
 	WEATHER_BG_COLORS["Light Rain Fog/Mist"]=$COLOR_BG_LGRY
 	WEATHER_BG_COLORS["Light Freezing Rain Fog/Mist"]=$COLOR_BG_LBLU
 	WEATHER_BG_COLORS["Fog/Mist"]=$COLOR_BG_LGRY
@@ -919,6 +926,8 @@ if [ "$SHOW_WEATHER" = 1 ]; then
 		WEATHER_DECORATIONS["Fair"]="-$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["A Few Clouds"]="~☁$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["A Few Clouds with Haze"]="~☁░~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Partly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Mostly Cloudy"]="☁~$DISPLAY_ESCAPE_SPACE"
@@ -926,12 +935,17 @@ $DISPLAY_ESCAPE_SPACE"
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Overcast with Haze"]="☁☁ᢆᢆ░3~"
 		WEATHER_DECORATIONS["Overcast"]="☁☁☁3~"
-		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
+		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
-		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\ᢆ☁~   "
-		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\ᢆ☁~   "
-		WEATHER_DECORATIONS["Fog/Mist"]="☁ᢆᢆ░~  "
-		WEATHER_DECORATIONS["Fog"]="☁ᢆ░~ "
+		WEATHER_DECORATIONS["Rain Fog/Mist"]="\`\`'\\ᢆ☁~$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\ᢆ☁~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\ᢆ☁~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Fog/Mist"]="☁ᢆᢆ░~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Fog"]="☁ᢆ░~$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Light Snow"]=".❄$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DECORATIONS["Snow"]="❄✲❄❅❆❈❉.$DISPLAY_ESCAPE_SPACE"'"'
@@ -940,19 +954,26 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DECORATIONS["Fair"]="-$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["A Few Clouds"]="~3$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["A Few Clouds with Haze"]="~3#~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Partly Cloudy"]="3~$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Mostly Cloudy"]="3~$DISPLAY_ESCAPE_SPACE"
-		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]="33~\
+		WEATHER_DECORATIONS["Mostly Cloudy with Haze"]="33#~\
 $DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Overcast with Haze"]="333~~"
 		WEATHER_DECORATIONS["Overcast"]="333~~"
-		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|   "
+		WEATHER_DECORATIONS["Light Rain"]="\`\`''\\\|\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Rain"]="\`\`\`\`'''\\\\\|"
-		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\3+#~  "
-		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\3+#~  "
-		WEATHER_DECORATIONS["Fog/Mist"]="3++#~  "
-		WEATHER_DECORATIONS["Fog"]="3+#~ "
+		WEATHER_DECORATIONS["Rain Fog/Mist"]="\`\`\\'3+#~$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Light Rain Fog/Mist"]="\`\`\\3+#~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Light Freezing Rain Fog/Mist"]="\`\`\\3+#~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Fog/Mist"]="3++#~\
+$DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"
+		WEATHER_DECORATIONS["Fog"]="3+#~$DISPLAY_ESCAPE_SPACE"
 		WEATHER_DECORATIONS["Light Snow"]=".\`$DISPLAY_ESCAPE_SPACE\
 $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 		WEATHER_DECORATIONS["Snow"]="\`.$DISPLAY_ESCAPE_SPACE"'"'
@@ -1111,12 +1132,14 @@ function render_sections(){
 		# --- Calendar --------------------------------------
 		if [ "$CUR_SECT" == 'C' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
-				# If there are Google Calendars, fetch them
+			if [ "$DATA_FRESH" -eq 0 ] || [ "$STARTED" -eq 0 ]; then
+				# Keep a list of upcoming events
 				LIST=""
+
+				# If there are Google Calendars, fetch events from them
 				if [ "$CALENDAR_GOOGLE_CALENDARS" == "true" ]; then
 					# We need OAuth access
-					if [ "$STARTED" -ne 1 ]; then
+					if [ "$STARTED" -eq 0 ]; then
 						echo "Google calendars require OAuth2 authentication:"
 					fi
 					SCOPE=$CALENDAR_GOOGLE_SCOPE
@@ -1143,6 +1166,7 @@ function render_sections(){
 					OLDIFS=$IFS
 					IFS=$'\n'
 					CALENDARS=($FEED)
+					IFS=$OLDIFS
 
 					# Iterate through calendars
 					for i in `seq 0 $(( ${#CALENDARS[@]} - 1 ))`; do
@@ -1175,6 +1199,7 @@ function render_sections(){
 						# Arrayize the events
 						IFS=$'\n'
 						EVENTS=($FEED)
+						IFS=$OLDIFS
 
 						# Iterate through events
 						for j in `seq 0 $(( ${#EVENTS[@]} - 1 ))`; do
@@ -1241,13 +1266,13 @@ function render_sections(){
 							LIST=$LIST$D_end
 						done
 					done
-
-					# Append the list of events to the data string
-					NEW_DATA=$NEW_DATA$(echo -e "$LIST"\
-						| sort -k1n,2n | uniq\
-						| sed "s/^[0-9]\+ [0-9]\+ {//g" | tr -d "\n")
-					IFS=$OLDIFS
 				fi
+
+				# Append the list of events to the data string
+				NEW_DATA=$NEW_DATA$(echo -e "$LIST"\
+					| sort -k1n,2n | uniq\
+					| sed "s/^[0-9]\+ [0-9]\+ {//g" | tr -d "\n")
+
 				DATA=$NEW_DATA
 			else
 				DATA=$OLD_DATA
@@ -1260,7 +1285,7 @@ function render_sections(){
 				NOW=$(date '+%s')
 				TODAY_YEAR=$(date '+%Y')
 				TODAY_MONTH=$(date '+%m')
-				TODAY_DAY=$(date '+%d')
+				TODAY_DAY=$(date '+%e')
 				TODAY_DOW=$(date '+%w')
 
 				# Expand the data into an array
@@ -1434,17 +1459,28 @@ ${PARTS[3]} ]$COLOR_RESET" $LEN)
 
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
-					"["$COLOR_PURP$COLOR_ULINE"TODO"$COLOR_RESET"]" $CUR_COLS)
+					"["$COLOR_PURP"Date"$COLOR_RESET"]" $CUR_COLS)
+				SRC_TEXT=""
+				if [ "$CALENDAR_GOOGLE_CALENDARS" ]; then
+					if [ -n "$SRC_TEXT" ]; then SRC_TEXT=$SRC_TEXT" "; fi
+					SRC_TEXT=$COLOR_BLUE"G"$COLOR_RED"o"$COLOR_YELO"o"\
+$COLOR_BLUE"g"$COLOR_GREN"l"$COLOR_RED"e"$COLOR_RESET
+				fi
+				if [ "$CALENDAR_ICAL_CALENDARS" ]; then
+					if [ -n "$SRC_TEXT" ]; then SRC_TEXT=$SRC_TEXT" "; fi
+					SRC_TEXT="i"$COLOR_RED"Cal"$COLOR_RESET
+				fi
+				if [ -z "$SRC_TEXT" ]; then SRC_TEXT="system calendar"; fi
 				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
-					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | "\
-$COLOR_ULINE"TODO"$COLOR_RESET $CUR_COLS)
+					"Updated: $(date -d "@$NEW_DATE" "+%I:%M%p") | "$SRC_TEXT\
+					$CUR_COLS)
 			fi
 		fi
 
 		# --- Email -----------------------------------------
 		if [ "$CUR_SECT" == 'E' ]; then
 			# If the data is old, download new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
+			if [ "$DATA_FRESH" -eq 0 ]; then
 				if [ "$EMAIL_SOURCE" == "Gmail" ]; then
 					URL="https://mail.google.com/mail/feed/atom"
 					FEED=$(curl -u "$EMAIL_USER:$EMAIL_PASS" --silent "$URL")
@@ -1681,7 +1717,7 @@ $SOURCE_STRING" $CUR_COLS)
 		# --- Matrix ----------------------------------------
 		if [ "$CUR_SECT" == 'M' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
+			if [ "$DATA_FRESH" -eq 0 ]; then
 				NEW_DATA="$(( CUR_COLS/MATRIX_CHAR_WIDTH ))"
 				for i in `seq 1 $NEW_DATA`; do
 					NEW_DATA=$NEW_DATA$(echo -e "\u7")
@@ -1827,7 +1863,7 @@ $NEW_CHAR
 
 				# Rows (n-2)-(n-1) show an update timestamp
 				NEW_DRAW[$(( CUR_ROWS-2 ))]=$(center\
-					"["$COLOR_GREN"The Matrix"$COLOR_RESET"]" $CUR_COLS)
+					"["$COLOR_GREN$(whoami)$COLOR_RESET"]" $CUR_COLS)
 				NEW_DRAW[$(( CUR_ROWS-1 ))]=$(center\
 					"call trans opt: received. $(date "+%T")" $CUR_COLS)
 			fi
@@ -1836,7 +1872,7 @@ $NEW_CHAR
 		# --- News ------------------------------------------
 		if [ "$CUR_SECT" == 'N' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
+			if [ "$DATA_FRESH" -eq 0 ]; then
 				OLDIFS=$IFS
 				IFS=";"
 				SOURCE_ARRAY=($NEWS_SOURCES)
@@ -2017,7 +2053,7 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 #top - 07:21:19 up 11 min,  1 user,  load average: 0.01, 0.10, 0.12
 		if [ "$CUR_SECT" == 'S' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
+			if [ "$DATA_FRESH" -eq 0 ]; then
 				NEW_DATA=""
 
 				# Get the hostname
@@ -2501,7 +2537,7 @@ $(printf "%3d" "${PARTS[2]}")$STATS_DEGREE_SYMBOL$STATS_TEMPERATURE_UNITS
 		# --- Weather ---------------------------------------
 		if [ "$CUR_SECT" == 'W' ]; then
 			# If the data is old, download new data, otherwise use the old data
-			if [ "$DATA_FRESH" == 0 ]; then
+			if [ "$DATA_FRESH" -eq 0 ]; then
 				URL="http://www.weather.gov/xml/current_obs/"
 				DOWNLOAD=$(wget -q -O- "$URL$WEATHER_NOAA_STATION_CODE"".xml")
 				D_cred=$(grep -oPm1 "(?<=<credit_URL>)[^<]*"\
@@ -2817,7 +2853,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 		fi
 
 		# Get the correct data and date
-		if [ "$DATA_FRESH" == 0 ]; then
+		if [ "$DATA_FRESH" -eq 0 ]; then
 			if [ "$DBG" = 1 ]; then msg "New Data"; fi
 			DATA=$NEW_DATA
 			DATE=$NEW_DATE
