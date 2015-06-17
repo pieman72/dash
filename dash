@@ -1341,8 +1341,8 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 						((++MONTH_DAY))
 						if [ "${CALENDAR_MONTH_LENGTHS[$TODAY_MONTH]}" -lt\
 								"$MONTH_DAY" ]; then
-							NEW_DRAW[((++LINE))]=$(center\
-								"$DATE_ROW" $CUR_COLS)
+							NEW_DRAW[((++LINE))]=$(center "$(extend\
+								"$DATE_ROW" 27)" $CUR_COLS)
 							break;
 						fi
 						if [ "$MONTH_DAY" -eq "$TODAY_DAY" ]; then
@@ -1421,16 +1421,16 @@ $COLOR_ULINE$COLOR_GRAY"Sun Mon Tue Wed Thu Fri Sat"$COLOR_RESET $CUR_COLS)
 						LEN=$(( (LEN<SECTION_MIN_COLS)?SECTION_MIN_COLS:LEN ))
 						if [ "$LINES_PER_EVENT" -eq 1 ]; then
 							DESC=$(truncatex\
-								"${PARTS[2]}" $((LEN - START_LEN - 5)))
-							DESC=$EVENT_BG$EVENT_FG$DISPLAY_SEPARATOR_H\
-$DISPLAY_SEPARATOR_H$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
-$COLOR_RESET" "$DESC" "$START_TEXT
+								"${PARTS[2]}" $((LEN - SPAN_LEN - 4)))
+							DESC=$EVENT_BG$EVENT_FG\
+$DISPLAY_SEPARATOR_V$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
+$COLOR_RESET" "$DESC" "$SPAN_TEXT
 							NEW_DRAW[((++LINE))]=$(center "$DESC" $CUR_COLS)
 						elif [ "$LINES_PER_EVENT" -eq 2 ]; then
 							DESC=$(truncatex\
 								"${PARTS[2]}" $((LEN - SPAN_LEN - 4)))
-							DESC=$EVENT_BG$EVENT_FG$DISPLAY_SEPARATOR_H\
-$DISPLAY_SEPARATOR_H$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
+							DESC=$EVENT_BG$EVENT_FG\
+$DISPLAY_SEPARATOR_V$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
 $COLOR_RESET" "$DESC" "$SPAN_TEXT
 							if [ -n "${PARTS[3]}" ]; then
 								LOC=$(truncatex "        $COLOR_GRAY[ \
@@ -1445,8 +1445,8 @@ ${PARTS[3]} ]$COLOR_RESET" $LEN)
 $DISPLAY_SEPARATOR_V$EVENT_INV$COLOR_BG_NORM$DISPLAY_RIGHT_ARROW\
 $COLOR_RESET" "$DESC" "$SPAN_TEXT
 							if [ -n "${PARTS[3]}" ]; then
-								LOC=$(truncatex "        $COLOR_GRAY[ \
-${PARTS[3]} ]$COLOR_RESET" $LEN)
+								LOC=$COLOR_GRAY"   [ "$(truncate\
+									"${PARTS[3]}" $((LEN - 7)))" ]"$COLOR_RESET
 							else LOC=""; fi
 							DIV=$COLOR_DGRY$(repeat\
 								"$DISPLAY_SEPARATOR_H" $LEN)$COLOR_RESET
