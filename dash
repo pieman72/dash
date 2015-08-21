@@ -756,7 +756,6 @@ while getopt -Q -q -o 'HCEMNSWd:' -n 'dash' -- $@; do
 done
 if [[ -n "$1" ]]; then error "Unrecognized option $1"; fi
 SECT_LIST=`echo $SECT_LIST | grep -o .`
-SECTS=$(wc -l <<< "$SECT_LIST")
 
 # Only in the case of the help menu being requested, print help and exit
 if [ "$SHOW_HELP" = 1 ]; then
@@ -995,6 +994,7 @@ function render_sections(){
 	NEW_DATE=`date +%s`
 	COLS=`tput cols`
 	ROWS=`tput lines`
+	SECTS=$(wc -l <<< "$SECT_LIST")
 	RENDER_SECT_LIST=$SECT_LIST
 
 	# Make sure there is enough space for anything
