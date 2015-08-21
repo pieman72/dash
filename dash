@@ -1154,7 +1154,7 @@ function render_sections(){
 					GOOGLE_OAUTH_TOKENS["$SCOPE","refresh"]=$REFRESH_TOKEN
 
 					# Pull the list of all calendars
-					msg "Fetching calendars..."
+					if [ "$DBG" = 1 ]; then msg "Fetching calendars..."; fi
 					NOW=$(date "+%s")
 					FEED="$(curl --silent\
 						-H "Authorization: Bearer $ACCESS_TOKEN"\
@@ -1185,7 +1185,9 @@ function render_sections(){
 						if [ -z "$D_selected" ]; then continue; fi
 
 						# Fetch events from the calendar
-						msg "Fetching events for $D_summary ..."
+						if [ "$DBG" = 1 ]; then
+							msg "Fetching events for $D_summary ..."
+						fi
 						Q=""
 						Q=$Q"singleEvents=true"
 						Q=$Q"&timeMin="$(date "+%FT%T%:z")
@@ -2080,11 +2082,11 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				D_COM_users=$(echo "$COM_FEED"\
 					| grep -Po '\b[0-9]+(?=\tuser)')
 				D_COM_upDays=$(echo "$COM_FEED"\
-					| grep -Po '\b[0-9]+(?=\tdays)')
+					| grep -Po '\b[0-9]+(?=\tday)')
 				D_COM_upHours=$(echo "$COM_FEED"\
-					| grep -Po '\b[0-9]+(?=\thours)')
+					| grep -Po '\b[0-9]+(?=\thour)')
 				D_COM_upMins=$(echo "$COM_FEED"\
-					| grep -Po '\b[0-9]+(?=\tmins)')
+					| grep -Po '\b[0-9]+(?=\tmin)')
 				if [ -z "$D_COM_upHours" ] && [ -z "$D_COM_upMins" ]; then
 					D_COM_upHours=$(echo "$COM_FEED"\
 						| cut '-f5,6,7,8,9'\
@@ -2269,8 +2271,23 @@ $(repeat "$DISPLAY_SEPARATOR_H" 14)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 					NEW_DRAW[((++g))]=$COLOR_GRAY"OS Distro:"$COLOR_RESET" "\
 $(truncate "${DATA_ARRAY[1]}" $(( CUR_COLS-11 )))
 					if [ "$g" -lt "$(( CUR_ROWS-5 ))" ]; then
-						NEW_DRAW[((++g))]=$COLOR_GRAY"Power time:$COLOR_RESET \
-${DATA_ARRAY[3]} Days, ${DATA_ARRAY[4]} Hrs, ${DATA_ARRAY[5]} Mins"
+						POWER_TIME=$COLOR_GRAY"Power time:$COLOR_RESET"
+						if [ -n "${DATA_ARRAY[3]}" ]; then
+							POWER_TIME=$POWER_TIME" "${DATA_ARRAY[3]}" Days"
+						else
+							POWER_TIME=$POWER_TIME" 0 Days"
+						fi
+						if [ -n "${DATA_ARRAY[4]}" ]; then
+							POWER_TIME=$POWER_TIME" "${DATA_ARRAY[4]}" Hrs"
+						else
+							POWER_TIME=$POWER_TIME" 0 Hrs"
+						fi
+						if [ -n "${DATA_ARRAY[5]}" ]; then
+							POWER_TIME=$POWER_TIME" "${DATA_ARRAY[5]}" Mins"
+						else
+							POWER_TIME=$POWER_TIME" 0 Mins"
+						fi
+						NEW_DRAW[((++g))]=$POWER_TIME
 						NEW_DRAW[((++g))]=$COLOR_GRAY"Users online:\
 $COLOR_RESET ${DATA_ARRAY[6]}"
 					fi
