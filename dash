@@ -1284,8 +1284,8 @@ function render_sections(){
 				# Collect date parts
 				NOW=$(date '+%s')
 				TODAY_YEAR=$(date '+%Y')
-				TODAY_MONTH=$(date '+%m')
-				TODAY_DAY=$(date '+%e')
+				TODAY_MONTH=$(date '+%m' | sed 's/^0//')
+				TODAY_DAY=$(date '+%e' | sed 's/^0//')
 				TODAY_DOW=$(date '+%w')
 
 				# Expand the data into an array
@@ -2049,8 +2049,6 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 		fi
 
 		# --- System Stats ----------------------------------
-# TODO: handle short uptimes
-#top - 07:21:19 up 11 min,  1 user,  load average: 0.01, 0.10, 0.12
 		if [ "$CUR_SECT" == 'S' ]; then
 			# If the data is old, fetch new data, otherwise use the old data
 			if [ "$DATA_FRESH" -eq 0 ]; then
@@ -2079,12 +2077,22 @@ $(repeat "$DISPLAY_SEPARATOR_H" 6)$DISPLAY_SEPARATOR_BR$COLOR_RESET
 				# Get system operation info
 				TOP=$(top bsn1 | head -n2 | sed 's/[ \t]\+/\t/g')
 				COM_FEED=$(echo "$TOP" | head -n1)
-				D_COM_upDays=$(echo "$COM_FEED" | cut -f5)
-				D_COM_upHours=$(echo "$COM_FEED" | cut -f7\
-					| sed 's/^\([0-9]\+\):[0-9]\+,$/\1/')
-				D_COM_upMins=$(echo "$COM_FEED" | cut -f7\
-					| sed 's/^[0-9]\+:\([0-9]\+\),$/\1/')
-				D_COM_users=$(echo "$COM_FEED" | cut -f8)
+				D_COM_users=$(echo "$COM_FEED"\
+					| grep -Po '\b[0-9]+(?=\tuser)')
+				D_COM_upDays=$(echo "$COM_FEED"\
+					| grep -Po '\b[0-9]+(?=\tdays)')
+				D_COM_upHours=$(echo "$COM_FEED"\
+					| grep -Po '\b[0-9]+(?=\thours)')
+				D_COM_upMins=$(echo "$COM_FEED"\
+					| grep -Po '\b[0-9]+(?=\tmins)')
+				if [ -z "$D_COM_upHours" ] && [ -z "$D_COM_upMins" ]; then
+					D_COM_upHours=$(echo "$COM_FEED"\
+						| cut '-f5,6,7,8,9'\
+						| grep -Po '[0-9]{1,2}(?=:[0-9]{2})')
+					D_COM_upMins=$(echo "$COM_FEED"\
+						| cut '-f5,6,7,8,9'\
+						| grep -Po '(?<=[0-9]:)[0-9]{2}')
+				fi
 
 				# Get task info
 				TSK_FEED=$(echo "$TOP" | tail -n1)
@@ -2361,7 +2369,7 @@ $(repeat "$DISPLAY_SEPARATOR_H" $CELL_WIDTH)$DISPLAY_SEPARATOR_R$COLOR_RESET
 						NEW_DRAW[$i]=${NEW_DRAW[$i]}$(centerex "$(heat\
 							"${PARTS[5]}%" "100.00" "75")" $CELL_WIDTH)$VBAR
 						NEW_DRAW[$i]=$(center "${NEW_DRAW[$i]}" $CUR_COLS)
-						if [ "$i" -eq "$((CUR_ROWS-5))" ]; then break; fi
+						if [ "$i" -eq "$((CUR_ROWS-12))" ]; then break; fi
 					done
 					NEW_DRAW[((++i))]="$COLOR_DGRY$DISPLAY_SEPARATOR_BL"\
 $(repeat "$DISPLAY_SEPARATOR_H" 3)$DISPLAY_SEPARATOR_B\
