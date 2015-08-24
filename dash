@@ -4,7 +4,7 @@
 STARTED=0
 TRAPS_SET=0
 [ -z "$DASH_ROOT" ] && DASH_ROOT="$( cd "$( dirname "$0" )" && pwd )"
-[ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="/home/`whoami`/.dash.ini"
+[ -z "$DASH_INI_PATH" ] && DASH_INI_PATH="$HOME/.dash.ini"
 if [ -f "$DASH_INI_PATH" ]; then
 	function load_config(){
 		RET="$(awk -F "\\\\s*=\\\\s*" "/^$1=/"' {print $2}'\
@@ -16,12 +16,13 @@ else
 fi
 
 # Dash basic configuration
-DBG=$(load_config "DBG" '0')
-REFRESH_RATE_SECONDS=$(load_config "REFRESH_RATE_SECONDS" '120')
-SECTION_MIN_COLS=$(load_config "SECTION_MIN_COLS" '40')
-SECTION_MIN_ROWS=$(load_config "SECTION_MIN_ROWS" '3')
-GOOGLE_OAUTH_CLIENT_ID=$(load_config "GOOGLE_OAUTH_CLIENT_ID" '')
-GOOGLE_OAUTH_CLIENT_SECRET=$(load_config "GOOGLE_OAUTH_CLIENT_SECRET" '')
+DBG=$(load_config 'DBG' '0')
+REFRESH_RATE_SECONDS=$(load_config 'REFRESH_RATE_SECONDS' '120')
+SECTION_MIN_COLS=$(load_config 'SECTION_MIN_COLS' '40')
+SECTION_MIN_ROWS=$(load_config 'SECTION_MIN_ROWS' '3')
+GOOGLE_OAUTH_CLIENT_ID=$(load_config 'GOOGLE_OAUTH_CLIENT_ID' '')
+GOOGLE_OAUTH_CLIENT_SECRET=$(load_config 'GOOGLE_OAUTH_CLIENT_SECRET' '')
+GOOGLE_OAUTH_SCOPES=()
 declare -A GOOGLE_OAUTH_TOKENS
 
 # Display configuration
@@ -662,7 +663,7 @@ function GoogleOAuth2(){
 	# From https://github.com/soulseekah/bash-utils/tree/master/google-oauth2 #
 	# ======================================================================= #
 	# Create a token
-	if [ -z "${GOOGLE_OAUTH_TOKENS["$1","refresh"]}" ]; then
+	if [ -z "${GOOGLE_OAUTH_TOKENS["refresh"]}" ]; then
 		# Initiate an OAuth request
 		REQUEST=""
 		REQUEST=$REQUEST"client_id=$GOOGLE_OAUTH_CLIENT_ID"
@@ -707,7 +708,7 @@ function GoogleOAuth2(){
 	# Refresh a token
 	else
 		# Load the stored refresh token
-		REFRESH_TOKEN=${GOOGLE_OAUTH_TOKENS["$1","refresh"]}
+		REFRESH_TOKEN=${GOOGLE_OAUTH_TOKENS["refresh"]}
 
 		# Submit a refresh request
 		REQUEST=""
@@ -790,8 +791,13 @@ if [ "$SHOW_CALENDAR" = 1 ]; then
 	# Get INI values
 	CALENDAR_SECONDS_PER_POLL=$(load_config "CALENDAR_SECONDS_PER_POLL" "3480")
 	CALENDAR_GOOGLE_CALENDARS=$(load_config "CALENDAR_GOOGLE_CALENDARS" "")
+
+	# Define OAuth parameters
 	CALENDAR_GOOGLE_URL="https://www.googleapis.com/calendar/v3"
 	CALENDAR_GOOGLE_SCOPE="https://www.googleapis.com/auth/calendar.readonly"
+	GOOGLE_OAUTH_SCOPES+=("$CALENDAR_GOOGLE_SCOPE")
+
+	# Some calendar constants
 	CALENDAR_MONTHS=("January" "February" "March" "April" "May" "June" "July"\
 		"August" "September" "October" "November" "December")
 	CALENDAR_MONTHS_SHORT=("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug"\
@@ -800,13 +806,13 @@ if [ "$SHOW_CALENDAR" = 1 ]; then
 		"Saturday")
 	CALENDAR_DAYS_SHORT=("Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat")
 	CALENDAR_ORDINALS=("th" "st" "nd" "rd" "th" "th" "th" "th" "th" "th")
-	CALENDAR_MONTH_OFFSETS=(0 3 3 6 1 4 6 2 5 0 3 5)
 	CALENDAR_MONTH_LENGTHS=(31 28 31 30 31 30 31 31 30 31 30 31)
 fi
 if [ "$SHOW_EMAIL" = 1 ]; then
 	# Get INI values
 	EMAIL_SECONDS_PER_POLL=$(load_config "EMAIL_SECONDS_PER_POLL" "300")
 	EMAIL_SOURCE=$(load_config "EMAIL_SOURCE" "Gmail")
+
 	# Prompt for credentials
 	read -p "Please enter the username for your $EMAIL_SOURCE account: "\
 		EMAIL_USER
@@ -980,6 +986,15 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 	fi
 fi
 
+# Get OAuth access, if necessary
+if [ -n "${GOOGLE_OAUTH_SCOPES[@]}" ]; then
+	echo "Some panels require OAuth2 authentication:"
+	TOKENS_TEMP=$(GoogleOAuth2 "${GOOGLE_OAUTH_SCOPES[*]}")
+	if [ -z "$TOKENS_TEMP" ]; then error "OAuth2 failed."; fi
+	GOOGLE_OAUTH_TOKENS["access"]=${TOKENS_TEMP%:*}
+	GOOGLE_OAUTH_TOKENS["refresh"]=${TOKENS_TEMP#*:}
+fi
+
 # Save the old screen, block input echo, and set signal traps
 tput smcup
 stty -echo
@@ -1139,20 +1154,8 @@ function render_sections(){
 
 				# If there are Google Calendars, fetch events from them
 				if [ "$CALENDAR_GOOGLE_CALENDARS" == "true" ]; then
-					# We need OAuth access
-					if [ "$STARTED" -eq 0 ]; then
-						echo "Google calendars require OAuth2 authentication:"
-					fi
-					SCOPE=$CALENDAR_GOOGLE_SCOPE
-					TOKENS_TEMP=$(GoogleOAuth2 "$SCOPE")
-					if [ -z "$TOKENS_TEMP" ]; then
-						error "OAuth2 failed.";
-					fi
-					echo
-					ACCESS_TOKEN=${TOKENS_TEMP%:*}
-					REFRESH_TOKEN=${TOKENS_TEMP#*:}
-					GOOGLE_OAUTH_TOKENS["$SCOPE","access"]=$ACCESS_TOKEN
-					GOOGLE_OAUTH_TOKENS["$SCOPE","refresh"]=$REFRESH_TOKEN
+					# Get the access token
+					ACCESS_TOKEN=${GOOGLE_OAUTH_TOKENS["access"]}
 
 					# Pull the list of all calendars
 					if [ "$DBG" = 1 ]; then msg "Fetching calendars..."; fi
@@ -1287,7 +1290,7 @@ function render_sections(){
 				# Collect date parts
 				NOW=$(date '+%s')
 				TODAY_YEAR=$(date '+%Y')
-				TODAY_MONTH=$(date '+%m' | sed 's/^0//')
+				TODAY_MONTH=$(( $(date '+%m' | sed 's/^0//') - 1 ))
 				TODAY_DAY=$(date '+%e' | sed 's/^0//')
 				TODAY_DOW=$(date '+%w')
 
@@ -2907,6 +2910,7 @@ ${LINE_ESCAPED//"$DISPLAY_ESCAPE_SPACE"/ }$COLOR_NORM
 			echo "$DATA" >> "$DASH_ROOT/$CUR_SECT"".dash"
 			echo "$SIZE" >> "$DASH_ROOT/$CUR_SECT"".dash"
 			printf '%s\n' "${DRAW[@]}"  >> "$DASH_ROOT/$CUR_SECT"".dash"
+			chmod 700 "$DASH_ROOT/$CUR_SECT"".dash"
 
 			# In debug mode, skip output
 			if [ "$DBG" = 0 ]; then
