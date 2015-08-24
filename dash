@@ -1015,14 +1015,15 @@ function render_sections(){
 				|| [ "$ROWS" -lt "$(( (SECTION_MIN_ROWS+1)*TEMP_Y-1 ))" ]; then
 			continue
 		fi
-		RATING=$(( ( (ROWS * 200) / TEMP_Y) / (COLS / TEMP_X) - 100 ))
+		EMPTY=$(( TEMP_X*TEMP_Y - SECTS ))
+		RATING=$(( (ROWS*200/TEMP_Y) / (COLS/TEMP_X) - 100 - (EMPTY*50) ))
 		DIFF="${RATING#-}"
 		if [ "$DIFF" -lt "$BEST_DIFF" ]; then
 			BEST_DIFF=$DIFF
 			BEST_X=$TEMP_X
 		fi
 	done
-	SECTS_X=BEST_X
+	SECTS_X=$BEST_X
 	SECTS_Y=$(( SECTS/SECTS_X + (SECTS%SECTS_X ? 1 : 0) ))
 	BLANK_SECTS=$(( SECTS_X*SECTS_Y - SECTS ))
 	if [ "$BLANK_SECTS" -gt "0" ]; then
