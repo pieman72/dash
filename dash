@@ -987,7 +987,7 @@ $DISPLAY_ESCAPE_SPACE$DISPLAY_ESCAPE_SPACE"'"'
 fi
 
 # Get OAuth access, if necessary
-if [ -n "${GOOGLE_OAUTH_SCOPES[@]}" ]; then
+if [ -n "${GOOGLE_OAUTH_SCOPES[*]}" ]; then
 	echo "Some panels require OAuth2 authentication:"
 	TOKENS_TEMP=$(GoogleOAuth2 "${GOOGLE_OAUTH_SCOPES[*]}")
 	if [ -z "$TOKENS_TEMP" ]; then error "OAuth2 failed."; fi
